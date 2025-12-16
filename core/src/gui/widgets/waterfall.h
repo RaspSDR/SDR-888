@@ -246,7 +246,7 @@ namespace ImGui {
 
         ImGuiWindow* window;
 
-        GLuint textureId;
+        ImTextureID textureId;
 
         std::recursive_mutex buf_mtx;
         std::recursive_mutex latestFFTMtx;

@@ -30,6 +30,9 @@ if (OPT_BACKEND_ANDROID)
     file(GLOB_RECURSE BACKEND_SRC "backends/android/*.cpp" "backends/android/*.c")
     set(BACKEND_SRC ${BACKEND_SRC} ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
 endif (OPT_BACKEND_ANDROID)
+if (OPT_BACKEND_WINDOWS)
+    file(GLOB_RECURSE BACKEND_SRC "backends/windows/*.cpp" "backends/windows/*.c")
+endif (OPT_BACKEND_WINDOWS)
 
 # Add code to dyn lib
 add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
@@ -52,22 +55,48 @@ if (OPT_BACKEND_GLFW)
     target_include_directories(sdrpp_core PUBLIC "backends/glfw/imgui")
 
     if (MSVC)
+        # OpenGL
+        find_package(OpenGL REQUIRED)
+        target_link_libraries(sdrpp_core PUBLIC OpenGL::GL)
+
         # GLFW3
         find_package(glfw3 CONFIG REQUIRED)
         target_link_libraries(sdrpp_core PUBLIC glfw)
+
     else()
         find_package(PkgConfig)
         pkg_check_modules(GLFW3 REQUIRED glfw3)
+        find_package(OpenGL REQUIRED)
+        pkg_check_modules(GLFW3 REQUIRED glfw3)
 
-        target_include_directories(sdrpp_core PUBLIC ${GLFW3_INCLUDE_DIRS})
-        target_link_directories(sdrpp_core PUBLIC ${GLFW3_LIBRARY_DIRS})
-        target_link_libraries(sdrpp_core PUBLIC ${GLFW3_LIBRARIES})
+        target_include_directories(sdrpp_core PUBLIC
+            ${OPENGL_INCLUDE_DIRS}
+            ${GLFW3_INCLUDE_DIRS}
+        )
+
+        target_link_directories(sdrpp_core PUBLIC
+            ${OPENGL_LIBRARY_DIRS}
+            ${GLFW3_LIBRARY_DIRS}
+        )
+        target_link_libraries(sdrpp_core PUBLIC
+            ${OPENGL_LIBRARIES}
+            ${GLFW3_LIBRARIES}
+        )
     endif()
 endif (OPT_BACKEND_GLFW)
+
 if (OPT_BACKEND_ANDROID)
     target_include_directories(sdrpp_core PUBLIC "backends/android")
     target_include_directories(sdrpp_core PUBLIC "backends/android/imgui")
 endif (OPT_BACKEND_ANDROID)
+
+if (OPT_BACKEND_WINDOWS)
+    target_include_directories(sdrpp_core PUBLIC "backends/windows")
+    target_include_directories(sdrpp_core PUBLIC "backends/windows/imgui")
+    if (MSVC)
+        target_link_libraries(sdrpp_core PUBLIC d3d11 dxgi)
+    endif ()
+endif (OPT_BACKEND_WINDOWS)
 
 # Link to libcorrect
 if (USE_INTERNAL_LIBCORRECT)
@@ -88,14 +117,6 @@ if (MSVC)
 
     # Volk
     target_link_libraries(sdrpp_core PUBLIC volk)
-
-    # OpenGL
-    find_package(OpenGL REQUIRED)
-    target_link_libraries(sdrpp_core PUBLIC OpenGL::GL)
-
-    # GLFW3
-    find_package(glfw3 CONFIG REQUIRED)
-    target_link_libraries(sdrpp_core PUBLIC glfw)
 
     # FFTW3
     find_package(FFTW3f CONFIG REQUIRED)
@@ -130,36 +151,28 @@ elseif (ANDROID)
     )
 else()
     find_package(PkgConfig)
-    find_package(OpenGL REQUIRED)
 
     pkg_check_modules(FFTW3 REQUIRED fftw3f)
     pkg_check_modules(VOLK REQUIRED volk)
-    pkg_check_modules(GLFW3 REQUIRED glfw3)
     pkg_check_modules(LIBZSTD REQUIRED libzstd)
     pkg_check_modules(CURL REQUIRED libcurl)
 
     target_include_directories(sdrpp_core PUBLIC
-        ${OPENGL_INCLUDE_DIRS}
         ${FFTW3_INCLUDE_DIRS}
-        ${GLFW3_INCLUDE_DIRS}
         ${VOLK_INCLUDE_DIRS}
         ${LIBZSTD_INCLUDE_DIRS}
         ${CURL_INCLUDE_DIRS}
     )
     
     target_link_directories(sdrpp_core PUBLIC
-        ${OPENGL_LIBRARY_DIRS}
         ${FFTW3_LIBRARY_DIRS}
-        ${GLFW3_LIBRARY_DIRS}
         ${VOLK_LIBRARY_DIRS}
         ${LIBZSTD_LIBRARY_DIRS}
         ${CURL_LIBRARY_DIRS}
     )
 
     target_link_libraries(sdrpp_core PUBLIC
-        ${OPENGL_LIBRARIES}
         ${FFTW3_LIBRARIES}
-        ${GLFW3_LIBRARIES}
         ${VOLK_LIBRARIES}
         ${LIBZSTD_LIBRARIES}
         ${CURL_LIBRARIES}

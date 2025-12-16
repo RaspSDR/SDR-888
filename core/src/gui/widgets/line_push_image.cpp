@@ -8,7 +8,7 @@ namespace ImGui {
         frameBuffer = (uint8_t*)malloc(_frameWidth * _reservedIncrement * 4);
         reservedCount = reservedIncrement;
 
-        textureId = backend::createTexture(_frameWidth, reservedCount, nullptr);
+        textureId = backend::createTexture(_frameWidth, reservedCount, frameBuffer);
     }
 
     void LinePushImage::draw(const ImVec2& size_arg) {
