@@ -10,7 +10,7 @@ namespace ImGui {
         memset(buffer, 0, _width * _height * 4);
         memset(activeBuffer, 0, _width * _height * 4);
 
-        textureId = backend::createTexture(_width, _height, nullptr);
+        textureId = backend::createTexture(_width, _height, activeBuffer);
     }
 
     ImageDisplay::~ImageDisplay() {

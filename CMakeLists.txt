@@ -4,7 +4,8 @@ project(sdrpp)
 include(CTest)
 
 # Backends
-option(OPT_BACKEND_GLFW "Use the GLFW backend" ON)
+option(OPT_BACKEND_GLFW "Use the GLFW backend" OFF)
+option(OPT_BACKEND_WINDOWS "Use the Windows DX11 backend" OFF)
 option(OPT_BACKEND_ANDROID "Use the Android backend" OFF)
 
 # Compatibility Options
@@ -83,6 +84,16 @@ set(SDRPP_CORE_ROOT "${CMAKE_SOURCE_DIR}/core/src/")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "26.0")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
+
+if (WIN32)
+    set(OPT_BACKEND_WINDOWS ON)
+else(WIN32)
+    if (ANDROID)
+        set(OPT_BACKEND_ANDROID ON)
+    else(ANDROID)
+        set(OPT_BACKEND_GLFW ON)
+    endif(ANDROID)
+endif (WIN32)
 
 # Compiler flags
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")

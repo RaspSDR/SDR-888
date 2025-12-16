@@ -116,7 +116,7 @@ namespace ImGui {
     }
 
     void WaterFall::init() {
-        textureId = backend::createTexture(dataWidth, waterfallHeight, nullptr);
+        textureId = 0;
     }
 
     void WaterFall::drawFFT() {
@@ -825,13 +825,14 @@ namespace ImGui {
         }
 
         if (waterfallVisible) {
-            backend::deleteTexture(textureId);
+            if (textureId)
+                backend::deleteTexture(textureId);
             delete[] waterfallFb;
             // recreate the texture
 
             waterfallFb = new uint32_t[dataWidth * waterfallHeight];
             memset(waterfallFb, 0, dataWidth * waterfallHeight * sizeof(uint32_t));
-            textureId = backend::createTexture(dataWidth, waterfallHeight, nullptr);
+            textureId = backend::createTexture(dataWidth, waterfallHeight, waterfallFb);
         }
         for (int i = 0; i < dataWidth; i++) {
             latestFFT[i] = -1000.0f; // Hide everything
