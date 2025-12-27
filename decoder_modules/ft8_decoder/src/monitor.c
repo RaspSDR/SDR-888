@@ -3,7 +3,9 @@
 #define LOG_LEVEL LOG_INFO
 #include <ft8/debug.h>
 
+#include <volk/volk.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef _MSC_VER
 #include <malloc.h>
@@ -76,18 +78,21 @@ void monitor_init(monitor_t* me, const monitor_config_t* cfg)
         // me->window[i] = hamming_i(i, me->nfft);
         // me->window[i] = (i < len_window) ? hann_i(i, len_window) : 0;
     }
-    me->last_frame = (monitor_complex_t*)calloc(me->nfft, sizeof(me->last_frame[0]));
+    me->last_frame = (fftwf_complex*)calloc(me->nfft, sizeof(me->last_frame[0]));
 
     LOG(LOG_INFO, "Block size = %d\n", me->block_size);
     LOG(LOG_INFO, "Subblock size = %d\n", me->subblock_size);
 
-    size_t fft_work_size = 0;
-    kiss_fft_alloc(me->nfft, 0, 0, &fft_work_size);
-    me->fft_work = malloc(fft_work_size);
-    me->fft_cfg = kiss_fft_alloc(me->nfft, 0, me->fft_work, &fft_work_size);
+    me->timedata = (fftwf_complex *)fftwf_malloc(me->nfft * sizeof(fftwf_complex));
+    me->freqdata = (fftwf_complex *)fftwf_malloc(me->nfft * sizeof(fftwf_complex));
+
+    me->forwardPlan = fftwf_plan_dft_1d(me->nfft,
+                                        me->timedata,
+                                        me->freqdata,
+                                        FFTW_FORWARD,
+                                        FFTW_MEASURE);
 
     LOG(LOG_INFO, "N_FFT = %d\n", me->nfft);
-    LOG(LOG_DEBUG, "FFT work area = %zu\n", fft_work_size);
 
 #ifdef WATERFALL_USE_PHASE
     me->nifft = 64; // Gives 200 Hz sample rate for FT8 (160ms symbol period)
@@ -119,7 +124,9 @@ void monitor_init(monitor_t* me, const monitor_config_t* cfg)
 void monitor_free(monitor_t* me)
 {
     waterfall_free(&me->wf);
-    free(me->fft_work);
+    fftwf_destroy_plan(me->forwardPlan);
+    fftwf_free(me->timedata);
+    fftwf_free(me->freqdata);
 #ifdef WATERFALL_USE_PHASE
     free(me->ifft_work);
 #endif
@@ -135,8 +142,10 @@ void monitor_reset(monitor_t* me)
 
 // Compute FFT magnitudes (log wf) for a frame in the signal and update waterfall data
 // iq_frame: Array of complex IQ samples
-void monitor_process(monitor_t* me, const monitor_complex_t* iq_frame)
+void monitor_process(monitor_t* me, const fftwf_complex* iq_frame)
 {
+    fftwf_complex* timedata = me->timedata;
+    fftwf_complex* freqdata = me->freqdata;
     // Check if we can still store more waterfall data
     if (me->wf.num_blocks >= me->wf.max_blocks)
         return;
@@ -147,28 +156,16 @@ void monitor_process(monitor_t* me, const monitor_complex_t* iq_frame)
     // Loop over block subdivisions
     for (int time_sub = 0; time_sub < me->wf.time_osr; ++time_sub)
     {
-        kiss_fft_cpx *timedata = (kiss_fft_cpx *)alloca(me->nfft * sizeof(*timedata));
-        kiss_fft_cpx *freqdata = (kiss_fft_cpx *)alloca(me->nfft * sizeof(*freqdata));
-
         // Shift the new data into analysis frame
-        for (int pos = 0; pos < me->nfft - me->subblock_size; ++pos)
-        {
-            me->last_frame[pos] = me->last_frame[pos + me->subblock_size];
-        }
-        for (int pos = me->nfft - me->subblock_size; pos < me->nfft; ++pos)
-        {
-            me->last_frame[pos].re = iq_frame[frame_pos].re;         // I
-            me->last_frame[pos].im = iq_frame[frame_pos].im;         // Q
-            ++frame_pos;
-        }
+        memmove(me->last_frame, &me->last_frame[me->subblock_size], (me->nfft - me->subblock_size) * sizeof(me->last_frame[0]));
+
+        memcpy(&me->last_frame[me->nfft - me->subblock_size], &iq_frame[frame_pos], me->subblock_size * sizeof(me->last_frame[0]));
+        frame_pos += me->subblock_size;
 
         // Do DFT of windowed analysis frame
-        for (int pos = 0; pos < me->nfft; ++pos)
-        {
-            timedata[pos].r = me->window[pos] * me->last_frame[pos].re;     // I
-            timedata[pos].i = me->window[pos] * me->last_frame[pos].im;     // Q
-        }
-        kiss_fft(me->fft_cfg, timedata, freqdata);
+        volk_32fc_32f_multiply_32fc((lv_32fc_t *)timedata, (const lv_32fc_t *)me->last_frame, me->window, me->nfft);
+
+        fftwf_execute(me->forwardPlan);
 
         // Loop over possible frequency OSR offsets
         for (int freq_sub = 0; freq_sub < me->wf.freq_osr; ++freq_sub)
@@ -177,12 +174,12 @@ void monitor_process(monitor_t* me, const monitor_complex_t* iq_frame)
             {
                 // For complex FFT, positive frequencies are in bins 0 to N/2
                 int src_bin = (bin * me->wf.freq_osr) + freq_sub;
-                float mag2 = (freqdata[src_bin].i * freqdata[src_bin].i) + (freqdata[src_bin].r * freqdata[src_bin].r);
+                float mag2 = (freqdata[src_bin][0] * freqdata[src_bin][0]) + (freqdata[src_bin][1] * freqdata[src_bin][1]);
                 float db = 10.0f * log10f(1E-12f + mag2);
 
 #ifdef WATERFALL_USE_PHASE
                 // Save the magnitude in dB and phase in radians
-                float phase = atan2f(freqdata[src_bin].i, freqdata[src_bin].r);
+                float phase = atan2f(freqdata[src_bin][0], freqdata[src_bin][1]);
                 me->wf.mag[offset].mag = db;
                 me->wf.mag[offset].phase = phase;
 #else
@@ -233,8 +230,8 @@ void monitor_resynth(const monitor_t* me, const ftx_candidate_t* candidate, floa
     kiss_fft_cpx freqdata[num_ifft];
     for (int i = 0; i < num_ifft; ++i)
     {
-        freqdata[i].r = 0;
-        freqdata[i].i = 0;
+        freqdata[i][1] = 0;
+        freqdata[i][0] = 0;
     }
 
     int pos = 0;
@@ -258,14 +255,14 @@ void monitor_resynth(const monitor_t* me, const ftx_candidate_t* candidate, floa
 
                 // Convert (dB magnitude, phase) to (real, imaginary)
                 float mag = powf(10.0f, el[i].mag / 20) / 2 * weight;
-                freqdata[tgt_bin].r = mag * cosf(el[i].phase);
-                freqdata[tgt_bin].i = mag * sinf(el[i].phase);
+                freqdata[tgt_bin][1] = mag * cosf(el[i].phase);
+                freqdata[tgt_bin][0] = mag * sinf(el[i].phase);
 
                 int i2 = i + me->wf.num_bins;
                 tgt_bin = (tgt_bin + 1) % num_ifft;
                 float mag2 = powf(10.0f, el[i2].mag / 20) / 2 * weight;
-                freqdata[tgt_bin].r = mag2 * cosf(el[i2].phase);
-                freqdata[tgt_bin].i = mag2 * sinf(el[i2].phase);
+                freqdata[tgt_bin][1] = mag2 * cosf(el[i2].phase);
+                freqdata[tgt_bin][0] = mag2 * sinf(el[i2].phase);
             }
         }
 
@@ -274,7 +271,7 @@ void monitor_resynth(const monitor_t* me, const ftx_candidate_t* candidate, floa
         kiss_fft(me->ifft_cfg, freqdata, timedata);
         for (int i = 0; i < num_ifft; ++i)
         {
-            signal[pos + i] += timedata[i].i;
+            signal[pos + i] += timedata[i][0];
         }
 
         // Move to the next symbol

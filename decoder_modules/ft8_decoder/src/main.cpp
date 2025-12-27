@@ -243,7 +243,7 @@ private:
                     return;
                 }
 
-                monitor_process(&monitor, reinterpret_cast<const monitor_complex_t*>(sampleBuffer.data()));
+                monitor_process(&monitor, reinterpret_cast<const fftwf_complex*>(sampleBuffer.data()));
 
                 // remove consumed samples from the front of the buffer
                 sampleBuffer.erase(sampleBuffer.begin(), sampleBuffer.begin() + monitor.block_size);
@@ -306,7 +306,10 @@ private:
                     }
 
                     std::string grid_str = std::string(grid);
-                    if (grid_str.find('+') == std::string::npos && grid_str.find('-') == std::string::npos) {
+                    if (grid_str.find('+') == std::string::npos &&
+                        grid_str.find('-') == std::string::npos &&
+                        grid_str != "RR73" &&
+                        grid_str.find(' ') == std::string::npos) {
                         double lat, lon;
 
                         flog::debug("FT8DecoderModule: Parsing grid with offset: {}", grid_str);
@@ -320,7 +323,7 @@ private:
                             item->style().markerSize = 2.0f;
                             _markItems[call_de] = item;
                             _mapPlot.addItem(item);
-                            flog::info("FT8DecoderModule: Plotted callsign {} at grid {} (lat {:.4f}, lon {:.4f})", call_de, grid_str, lat, lon);
+                            flog::info("FT8DecoderModule: Plotted callsign {} at grid {} (lat {}, lon {})", call_de, grid_str, lat, lon);
                         }
                     }
                 }
