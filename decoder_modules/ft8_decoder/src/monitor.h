@@ -7,7 +7,7 @@ extern "C"
 #endif
 
 #include <ft8/decode.h>
-#include <fft/kiss_fft.h>
+#include <fftw3.h>
 
 /// Configuration options for FT4/FT8 monitor
 typedef struct
@@ -19,12 +19,6 @@ typedef struct
     int freq_osr;            ///< Number of frequency subdivisions
     ftx_protocol_t protocol; ///< Protocol: FT4 or FT8
 } monitor_config_t;
-
-// Simple complex sample representation for C code
-typedef struct {
-    float re;
-    float im;
-} monitor_complex_t;
 
 /// FT4/FT8 monitor object that manages DSP processing of incoming audio data
 /// and prepares a waterfall object
@@ -38,13 +32,13 @@ typedef struct
     int nfft;            ///< FFT size
     float fft_norm;      ///< FFT normalization factor
     float* window;       ///< Window function for STFT analysis (nfft samples)
-    monitor_complex_t* last_frame;   ///< Current STFT analysis frame (nfft samples)
+    fftwf_complex* last_frame;   ///< Current STFT analysis frame (nfft samples)
     ftx_waterfall_t wf;  ///< Waterfall object
     float max_mag;       ///< Maximum detected magnitude (debug stats)
 
     // KISS FFT housekeeping variables
-    void* fft_work;      ///< Work area required by Kiss FFT
-    kiss_fft_cfg fft_cfg; ///< Kiss FFT housekeeping object
+    fftwf_plan forwardPlan;
+    fftwf_complex *timedata, *freqdata;
 #ifdef WATERFALL_USE_PHASE
     int nifft;             ///< iFFT size
     void* ifft_work;       ///< Work area required by inverse Kiss FFT
@@ -54,7 +48,7 @@ typedef struct
 
 void monitor_init(monitor_t* me, const monitor_config_t* cfg);
 void monitor_reset(monitor_t* me);
-void monitor_process(monitor_t* me, const monitor_complex_t* iq_frame);
+void monitor_process(monitor_t* me, const fftwf_complex* iq_frame);
 void monitor_free(monitor_t* me);
 
 #ifdef WATERFALL_USE_PHASE
