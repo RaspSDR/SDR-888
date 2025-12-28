@@ -55,8 +55,9 @@ namespace dsp::channel {
             plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, ADCinFreq, FFTW_PATIENT);
             plan_f2t_c2c = fftwf_plan_dft_1d(halfFft, inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_PATIENT);
 
-            setOutSamplerate(32000000, 16000000);
             base_type::init(in);
+
+            setOutSamplerate(32000000, 16000000);
         }
 
         void setGainFactor(float gain) {
