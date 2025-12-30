@@ -79,4 +79,10 @@ else() # Linux
 endif()
 
 target_compile_definitions(sddc_source PRIVATE PFFFT_ENABLE_NEON)
-target_link_libraries(sddc_source PRIVATE sddc::sddc)
+target_link_libraries(sddc_source PUBLIC sddc::sddc)
+
+add_custom_command(TARGET sddc_source POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:sddc::sddc>"
+        "$<TARGET_FILE_DIR:sddc_source>"
+)
