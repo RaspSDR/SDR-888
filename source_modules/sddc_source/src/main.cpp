@@ -26,7 +26,7 @@ ConfigManager config;
 // The following count have to be choose as
 // 3 * N = 4 * BufferCount + 1
 // where N is integer, so that the FFT bins align correctly
-// the values we can use 41, 80, 92， 101
+// the values we can use 41, 80, 92, 101
 #define SDDC_ACCUMRATE_BUFFER_COUNT 101
 #define SDDC_BUFFER_SIZE (16 * 1024 / 2)
 
@@ -70,7 +70,7 @@ public:
     }
 
     ~SDDCSourceModule() {
-        sigpath::sourceManager.unregisterSource("SDDC");
+        sigpath::sourceManager.unregisterSource("RX-888");
     }
 
     void postInit() {}

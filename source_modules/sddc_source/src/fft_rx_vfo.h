@@ -307,7 +307,7 @@ namespace dsp::channel {
 
         static inline void shift_freq(fftwf_complex* dest, const fftwf_complex* source1, const fftwf_complex* source2, size_t count) {
             // Use VOLK for complex multiplication
-            volk_32fc_x2_multiply_32fc((lv_32fc_t*)(dest), (lv_32fc_t*)(source1), (lv_32fc_t*)(source2), count);
+            volk_32fc_x2_multiply_32fc((lv_32fc_t*)(dest), (lv_32fc_t*)(source1), (lv_32fc_t*)(source2), (uint32_t)count);
         }
 
         template <bool flip>
