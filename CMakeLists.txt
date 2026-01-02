@@ -7,6 +7,7 @@ include(CTest)
 option(OPT_BACKEND_GLFW "Use the GLFW backend" OFF)
 option(OPT_BACKEND_WINDOWS "Use the Windows DX11 backend" OFF)
 option(OPT_BACKEND_ANDROID "Use the Android backend" OFF)
+option(OPT_BACKEND_APPLE "Use the Apple Metal backend" OFF)
 
 # Compatibility Options
 option(OPT_OVERRIDE_STD_FILESYSTEM "Use a local version of std::filesystem on systems that don't have it yet" OFF)
@@ -87,13 +88,13 @@ set(CMAKE_C_STANDARD 11)
 
 if (WIN32)
     set(OPT_BACKEND_WINDOWS ON)
-else(WIN32)
-    if (ANDROID)
-        set(OPT_BACKEND_ANDROID ON)
-    else(ANDROID)
-        set(OPT_BACKEND_GLFW ON)
-    endif(ANDROID)
-endif (WIN32)
+elseif (ANDROID)
+    set(OPT_BACKEND_ANDROID ON)
+elseif (APPLE)
+    set(OPT_BACKEND_APPLE ON)
+else()
+    set(OPT_BACKEND_GLFW ON)
+endif()
 
 # Compiler flags
 if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
