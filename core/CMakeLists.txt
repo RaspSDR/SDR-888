@@ -33,6 +33,9 @@ endif (OPT_BACKEND_ANDROID)
 if (OPT_BACKEND_WINDOWS)
     file(GLOB_RECURSE BACKEND_SRC "backends/windows/*.cpp" "backends/windows/*.c")
 endif (OPT_BACKEND_WINDOWS)
+if (OPT_BACKEND_APPLE)
+    file(GLOB_RECURSE BACKEND_SRC "backends/metal/*.mm")
+endif (OPT_BACKEND_APPLE)
 
 # Add code to dyn lib
 add_library(sdrpp_core SHARED ${SRC} ${BACKEND_SRC})
@@ -97,6 +100,22 @@ if (OPT_BACKEND_WINDOWS)
         target_link_libraries(sdrpp_core PUBLIC d3d11 dxgi)
     endif ()
 endif (OPT_BACKEND_WINDOWS)
+
+if (OPT_BACKEND_APPLE)
+    target_include_directories(sdrpp_core PUBLIC "backends/metal")
+    target_include_directories(sdrpp_core PUBLIC "backends/metal/imgui")
+    find_library(METAL_LIBRARY Metal)
+    find_library(METALKIT_LIBRARY MetalKit)
+    find_library(FOUNDATION_LIBRARY Foundation)
+    find_library(APPKIT_LIBRARY AppKit)
+    find_library(GAMECONTROLLER_LIBRARY GameController)
+    target_link_libraries(sdrpp_core PUBLIC ${APPKIT_LIBRARY} ${METAL_LIBRARY} ${METALKIT_LIBRARY} ${FOUNDATION_LIBRARY} ${GAMECONTROLLER_LIBRARY})
+    set_source_files_properties(
+        ${BACKEND_SRC}
+        PROPERTIES
+        COMPILE_FLAGS "-fobjc-arc -framework Metal -framework AppKit -framework MetalKit -framework Foundation -framework GameController"
+    )
+endif (OPT_BACKEND_APPLE)
 
 # Link to libcorrect
 if (USE_INTERNAL_LIBCORRECT)
