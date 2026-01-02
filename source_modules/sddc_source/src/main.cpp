@@ -427,8 +427,7 @@ private:
             core::setInputSampleRate(_this->sampleRate);
         }
 
-        SmGui::LeftLabel("Antenna Port");
-        SmGui::FillWidth();
+        SmGui::LeftLabel("Antenna");
         if (SmGui::Combo(CONCAT("##_sddc_port_", _this->name), &_this->portId, _this->ports.txt)) {
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
@@ -439,19 +438,18 @@ private:
             }
         }
 
-        if (_this->running) { SmGui::EndDisabled(); }
-
-        if (SmGui::Checkbox(CONCAT("Bias-T##_sddc_bias_", _this->name), &_this->bias)) {
+        SmGui::LeftLabel("ADC");
+        if (SmGui::Checkbox(CONCAT("RANDO##_sddc_rando_", _this->name), &_this->rando)) {
             if (_this->running) {
-                int flag = _this->port == PORT_HF ? 1 : 2;
-                sddc_enable_bias_tee(_this->openDev, _this->bias ? flag : 0);
+                sddc_enable_adc_rando(_this->openDev, _this->rando ? 1 : 0);                
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["bias"] = _this->bias;
+                config.conf["devices"][_this->selectedSerial]["rando"] = _this->rando;
                 config.release(true);
             }
         }
+        if (_this->running) { SmGui::EndDisabled(); }
 
         SmGui::SameLine();
         if (SmGui::Checkbox(CONCAT("PGA##_sddc_pga_", _this->name), &_this->pga)) {
@@ -465,6 +463,17 @@ private:
             }
         }
 
+        SmGui::SameLine();
+        if (SmGui::Checkbox(CONCAT("Dither##_sddc_dither_", _this->name), &_this->dither)) {
+            if (_this->running) {
+                sddc_enable_adc_dither(_this->openDev, _this->dither ? 1 : 0);                
+            }
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["dither"] = _this->dither;
+                config.release(true);
+            }
+        }
         SmGui::LeftLabel("RF Gain");
         SmGui::FillWidth();
         if (SmGui::SliderInt(CONCAT("##_sddc_rf_gain_", _this->name), &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
@@ -490,6 +499,19 @@ private:
                 config.release(true);
             }
         }
+
+        if (SmGui::Checkbox(CONCAT("Bias-T##_sddc_bias_", _this->name), &_this->bias)) {
+            if (_this->running) {
+                int flag = _this->port == PORT_HF ? 1 : 2;
+                sddc_enable_bias_tee(_this->openDev, _this->bias ? flag : 0);
+            }
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["bias"] = _this->bias;
+                config.release(true);
+            }
+        }
+
     }
 
     static void sddc_async_callback(const int16_t* buffer, uint32_t count, void* ctx) {
@@ -530,6 +552,8 @@ private:
     std::string selectedSerial;
 
     bool pga;
+    bool dither;
+    bool rando;
 
     sddc_dev_t* openDev;
 
