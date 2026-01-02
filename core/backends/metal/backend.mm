@@ -4,6 +4,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+#import <QuartzCore/QuartzCore.h>
 
 #include <unordered_set>
 #include <mutex>
@@ -155,6 +156,19 @@ int init(std::string resDir)
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
+        // If a resource directory was provided (not using a bundle), try to load
+        // a dock/application icon from common filenames and set it for the app.
+        if (!resDir.empty()) {
+            NSString* nsRes = [NSString stringWithUTF8String:resDir.c_str()];
+            NSString* path = [nsRes stringByAppendingPathComponent:@"icons/sdr888.ico"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+                NSImage* icon = [[NSImage alloc] initWithContentsOfFile:path];
+                if (icon) {
+                    [NSApp setApplicationIconImage:icon];
+                }
+            }
+        }
+
         // Create device and queue
         g_device = MTLCreateSystemDefaultDevice();
         if (!g_device) return -1;
@@ -232,18 +246,31 @@ void render(bool vsync)
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
 
-    // clear color default
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    g_renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+    // If vsync requested, obtain a drawable from the underlying CAMetalLayer.
+    // Calling `nextDrawable` will block until a drawable is available, effectively
+    // synchronizing rendering with the display refresh.
+    id<CAMetalDrawable> vsyncDrawable = nil;
+    if (vsync) {
+        CAMetalLayer *layer = (CAMetalLayer*)g_mtkView.layer;
+        if (layer) {
+            vsyncDrawable = [layer nextDrawable];
+            if (vsyncDrawable) {
+                // Ensure the render pass uses the drawable's texture
+                g_renderPassDescriptor.colorAttachments[0].texture = vsyncDrawable.texture;
+            }
+        }
+    }
 
     id<MTLRenderCommandEncoder> renderEncoder = [g_commandBuffer renderCommandEncoderWithDescriptor:g_renderPassDescriptor];
     [renderEncoder pushDebugGroup:@"Dear ImGui rendering"];
     ImGui_ImplMetal_RenderDrawData(draw_data, g_commandBuffer, renderEncoder);
     [renderEncoder popDebugGroup];
     [renderEncoder endEncoding];
-
-    if (g_mtkView.currentDrawable)
+    if (vsyncDrawable) {
+        [g_commandBuffer presentDrawable:vsyncDrawable];
+    } else if (g_mtkView.currentDrawable) {
         [g_commandBuffer presentDrawable:g_mtkView.currentDrawable];
+    }
     [g_commandBuffer commit];
 
     g_commandBuffer = nil;
@@ -322,7 +349,7 @@ int renderLoop()
                     gui::mainWindow.draw();
                 }
 
-                render();
+                render(true);
             }
 
             // Small sleep to avoid busy loop when idle
