@@ -375,6 +375,7 @@ int end()
 {
     ImGui_ImplMetal_Shutdown();
     ImGui_ImplOSX_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     if (g_window) {

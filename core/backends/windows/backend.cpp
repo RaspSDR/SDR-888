@@ -1,6 +1,7 @@
 // Windows backend implementation using Win32 + DirectX11, inspired by windows_example.cpp
 #include <backend.h>
 #include "imgui.h"
+#include "implot.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 
@@ -168,6 +169,7 @@ namespace backend {
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+        ImPlot::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         (void)io;
         io.IniFilename = NULL; // app manages its own config
@@ -287,6 +289,7 @@ namespace backend {
         // Cleanup
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
+        ImPlot::DestroyContext();
         ImGui::DestroyContext();
 
         CleanupDeviceD3D();
