@@ -1,34 +1,21 @@
 #pragma once
 
-#include <string>
-#include <fstream>
-#include <unordered_map>
+#include "imgui.h"
 #include "json.hpp"
+
+#include <string>
+#include <vector>
+#include <set>
+#include <unordered_map>
 
 using json = nlohmann::json;
 namespace gui {
 
     class I18N {
     public:
-        bool load(const std::string& resDir, const std::string& lang) {
-            if (lang == "en") {
-                translations.clear();
-                return true;
-            }
+        std::string currentLang;
 
-            std::string path = resDir + "/locales/" + lang + ".json";
-            std::ifstream f(path);
-            if (f.is_open()) {
-                json j;
-                f >> j;
-                translations.clear();
-                for (auto& el : j.items()) {
-                    translations[el.key()] = el.value().get<std::string>();
-                }
-                return true;
-            }
-            return false;
-        }
+        bool load(const std::string& resDir, const std::string& lang);
 
         const char* get(const char* key) {
             if (!key) return "";
@@ -38,7 +25,13 @@ namespace gui {
             return key;
         }
 
+        std::vector<ImWchar> BuildGlyphRanges();
+
     private:
         std::unordered_map<std::string, std::string> translations;
+
+        static uint16_t DecodeUTF8_BMP(const char*& p, const char* end);
+
+        std::set<uint16_t> CollectUniqueBMP();
     };
 }
