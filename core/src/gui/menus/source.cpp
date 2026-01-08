@@ -133,8 +133,8 @@ namespace sourcemenu {
         namedOffsets.clear();
 
         // Define special offset modes
-        offsets.define("None", OFFSET_ID_NONE);
-        offsets.define("Manual", OFFSET_ID_MANUAL);
+        offsets.define(_L("None"), OFFSET_ID_NONE);
+        offsets.define(_L("Manual"), OFFSET_ID_MANUAL);
 
         // Acquire the config file
         core::configManager.acquire();
@@ -159,7 +159,7 @@ namespace sourcemenu {
         reloadOffsets();
 
         // Define decimation values
-        decimations.define(1, "None", 1);
+        decimations.define(1, _L("None"), 1);
         decimations.define(2, "2x", 2);
         decimations.define(4, "4x", 4);
         decimations.define(8, "8x", 8);
@@ -246,33 +246,33 @@ namespace sourcemenu {
         ImGui::OpenPopup(id);
 
         if (ImGui::BeginPopup(id, ImGuiWindowFlags_NoResize)) {
-            ImGui::LeftLabel("Name");
+            ImGui::LeftLabel(_L("Name"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             ImGui::InputText("##sdrpp_add_offset_name", newOffsetName, 1023);
 
-            ImGui::LeftLabel("Offset");
+            ImGui::LeftLabel(_L("Offset"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             ImGui::InputDouble("##sdrpp_add_offset_offset", &newOffset);
 
             bool nameExists = offsets.nameExists(newOffsetName);
-            bool reservedName = !strcmp(newOffsetName, "None") || !strcmp(newOffsetName, "Manual");
+            bool reservedName = !strcmp(newOffsetName, _L("None")) || !strcmp(newOffsetName, _L("Manual"));
             bool denyApply = !newOffsetName[0] || nameExists || reservedName;
 
             if (nameExists) {
-                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "An offset with the given name already exists.");
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", _L("An offset with the given name already exists."));
             }
             else if (reservedName) {
-                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "The given name is reserved.");
+                ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", _L("The given name is reserved."));
             }
 
             if (denyApply) { style::beginDisabled(); }
-            if (ImGui::Button("Apply")) {
+            if (ImGui::Button(_L("Apply"))) {
                 addOffset(newOffsetName, newOffset);
                 open = false;
             }
             if (denyApply) { style::endDisabled(); }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel")) {
+            if (ImGui::Button(_L("Cancel"))) {
                 open = false;
             }
             ImGui::EndPopup();
@@ -301,21 +301,25 @@ namespace sourcemenu {
 
         sigpath::sourceManager.showSelectedMenu();
 
-        if (ImGui::Checkbox("IQ Correction##_sdrpp_iq_corr", &iqCorrection)) {
+        ImGui::PushID("sdrpp_iq_corr");
+        if (ImGui::Checkbox(_L("IQ Correction"), &iqCorrection)) {
             sigpath::iqFrontEnd.setDCBlocking(iqCorrection);
             core::configManager.acquire();
             core::configManager.conf["iqCorrection"] = iqCorrection;
             core::configManager.release(true);
         }
+        ImGui::PopID();
 
-        if (ImGui::Checkbox("Invert IQ##_sdrpp_inv_iq", &invertIQ)) {
+        ImGui::PushID("sdrpp_invert_iq");
+        if (ImGui::Checkbox(_L("Invert IQ"), &invertIQ)) {
             sigpath::iqFrontEnd.setInvertIQ(invertIQ);
             core::configManager.acquire();
             core::configManager.conf["invertIQ"] = invertIQ;
             core::configManager.release(true);
         }
+        ImGui::PopID();
 
-        ImGui::LeftLabel("Offset mode");
+        ImGui::LeftLabel(_L("Offset mode"));
         ImGui::SetNextItemWidth(itemWidth - ImGui::GetCursorPosX() - 2.0f*(lineHeight + 1.5f*spacing));
         if (ImGui::Combo("##_sdrpp_offset", &offsetId, offsets.txt)) {
             selectOffsetById(offsetId);
@@ -340,7 +344,7 @@ namespace sourcemenu {
 
         // Offset delete confirmation
         if (ImGui::GenericDialog("sdrpp_del_offset_confirm", showDelOffsetDialog, GENERIC_DIALOG_BUTTONS_YES_NO, []() {
-            ImGui::Text("Deleting offset named \"%s\". Are you sure?", delOffsetName.c_str());
+            ImGui::Text(_L("Deleting offset named \"%s\". Are you sure?"), delOffsetName.c_str());
         }) == GENERIC_DIALOG_BUTTON_YES) {
             delOffset(delOffsetName);
         }
@@ -348,7 +352,7 @@ namespace sourcemenu {
         // Offset add diaglog
         if (showAddOffsetDialog) { showAddOffsetDialog = addOffsetDialog(); }
 
-        ImGui::LeftLabel("Offset");
+        ImGui::LeftLabel(_L("Offset"));
         ImGui::FillWidth();
         if (offsetId == OFFSET_ID_MANUAL) {
             if (ImGui::InputDouble("##freq_offset", &manualOffset, 1.0, 100.0)) {
@@ -365,7 +369,7 @@ namespace sourcemenu {
         }
 
         if (running) { style::beginDisabled(); }
-        ImGui::LeftLabel("Decimation");
+        ImGui::LeftLabel(_L("Decimation"));
         ImGui::FillWidth();
         if (ImGui::Combo("##source_decim", &decimId, decimations.txt)) {
             sigpath::iqFrontEnd.setDecimation(decimations.value(decimId));
