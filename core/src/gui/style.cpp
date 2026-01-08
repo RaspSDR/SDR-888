@@ -44,10 +44,16 @@ namespace style {
         const ImWchar hugeRange[] = { 'S', 'D', 'R', '-', '8', ' ', 0 };
         hugeBuilder.AddRanges(hugeRange);
         hugeBuilder.BuildRanges(&hugeRanges);
-        
+
+#if defined(_WIN32)
+        std::string fontPath = std::getenv("WINDIR") + std::string("\\Fonts\\simhei.ttf");
+#elif defined(_OSX_)
         std::string fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
+#else
+        std::string fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
+#endif
         std::string fallbackFontPath = resDir + "/fonts/Roboto-Medium.ttf";
-        
+
         if (!std::filesystem::exists(fontPath)) {
             fontPath = fallbackFontPath;
         }

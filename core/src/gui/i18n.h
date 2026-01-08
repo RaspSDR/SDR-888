@@ -8,13 +8,8 @@
 using json = nlohmann::json;
 namespace gui {
 
-    class i18n {
+    class I18N {
     public:
-        static i18n& instance() {
-            static i18n inst;
-            return inst;
-        }
-
         bool load(const std::string& resDir, const std::string& lang) {
             if (lang == "en") {
                 translations.clear();
@@ -47,5 +42,3 @@ namespace gui {
         std::unordered_map<std::string, std::string> translations;
     };
 }
-
-#define _L(key) gui::i18n::instance().get(key)

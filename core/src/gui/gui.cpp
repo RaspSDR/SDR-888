@@ -6,4 +6,5 @@ namespace gui {
     FrequencySelect freqSelect;
     ThemeManager themeManager;
     Menu menu;
+    I18N i18n;
 };
