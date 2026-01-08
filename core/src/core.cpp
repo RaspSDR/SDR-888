@@ -51,7 +51,6 @@ namespace core {
     ConfigManager configManager;
     ModuleManager moduleManager;
     ModuleComManager modComManager;
-    DecoderManager decoderManager;
     CommandArgsParser args;
 
     void setInputSampleRate(double samplerate) {

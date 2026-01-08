@@ -2,7 +2,6 @@
 #include <config.h>
 #include <module.h>
 #include <module_com.h>
-#include <decoder_manager.h>
 #include "command_args.h"
 
 namespace core {
@@ -10,7 +9,6 @@ namespace core {
     SDRPP_EXPORT ModuleManager moduleManager;
     SDRPP_EXPORT ModuleComManager modComManager;
     SDRPP_EXPORT CommandArgsParser args;
-    SDRPP_EXPORT DecoderManager decoderManager;
 
     void setInputSampleRate(double samplerate);
 };
