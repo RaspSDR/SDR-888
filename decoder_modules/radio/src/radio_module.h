@@ -172,47 +172,48 @@ public:
 private:
     static void menuHandler(void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
+        ImGui::PushID(_this->name.c_str());
 
         if (!_this->enabled) { style::beginDisabled(); }
 
         float menuWidth = ImGui::GetContentRegionAvail().x;
         ImGui::BeginGroup();
 
-        ImGui::Columns(5, CONCAT("RadioModeColumns##_", _this->name), false);
-        if (ImGui::RadioButton(CONCAT("AM##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_AM) && _this->selectedDemodID != 2) {
+        ImGui::Columns(5, "RadioModeColumns", false);
+        if (ImGui::RadioButton("AM", _this->selectedDemodID == RADIO_DEMOD_AM) && _this->selectedDemodID != 2) {
             _this->selectDemodByID(RADIO_DEMOD_AM);
         }
-        if (ImGui::RadioButton(CONCAT("SAM##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_SAM) && _this->selectedDemodID != RADIO_DEMOD_SAM) {
+        if (ImGui::RadioButton("SAM", _this->selectedDemodID == RADIO_DEMOD_SAM) && _this->selectedDemodID != RADIO_DEMOD_SAM) {
             _this->selectDemodByID(RADIO_DEMOD_SAM);
         }
         ImGui::NextColumn();
 
-        if (ImGui::RadioButton(CONCAT("USB##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_USB) && _this->selectedDemodID != RADIO_DEMOD_USB) {
+        if (ImGui::RadioButton("USB", _this->selectedDemodID == RADIO_DEMOD_USB) && _this->selectedDemodID != RADIO_DEMOD_USB) {
             _this->selectDemodByID(RADIO_DEMOD_USB);
         }
-        if (ImGui::RadioButton(CONCAT("NFM##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_NFM) && _this->selectedDemodID != 0) {
+        if (ImGui::RadioButton("NFM", _this->selectedDemodID == RADIO_DEMOD_NFM) && _this->selectedDemodID != 0) {
             _this->selectDemodByID(RADIO_DEMOD_NFM);
         }
         ImGui::NextColumn();
 
-        if (ImGui::RadioButton(CONCAT("LSB##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_LSB) && _this->selectedDemodID != RADIO_DEMOD_LSB) {
+        if (ImGui::RadioButton("LSB", _this->selectedDemodID == RADIO_DEMOD_LSB) && _this->selectedDemodID != RADIO_DEMOD_LSB) {
             _this->selectDemodByID(RADIO_DEMOD_LSB);
         }
-        if (ImGui::RadioButton(CONCAT("WFM##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_WFM) && _this->selectedDemodID != RADIO_DEMOD_WFM) {
+        if (ImGui::RadioButton("WFM", _this->selectedDemodID == RADIO_DEMOD_WFM) && _this->selectedDemodID != RADIO_DEMOD_WFM) {
             _this->selectDemodByID(RADIO_DEMOD_WFM);
         }
         ImGui::NextColumn();
-        if (ImGui::RadioButton(CONCAT("DSB##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_DSB) && _this->selectedDemodID != 3) {
+        if (ImGui::RadioButton("DSB", _this->selectedDemodID == RADIO_DEMOD_DSB) && _this->selectedDemodID != 3) {
             _this->selectDemodByID(RADIO_DEMOD_DSB);
         }
-        if (ImGui::RadioButton(CONCAT("CW##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_CW) && _this->selectedDemodID != RADIO_DEMOD_CW) {
+        if (ImGui::RadioButton("CW", _this->selectedDemodID == RADIO_DEMOD_CW) && _this->selectedDemodID != RADIO_DEMOD_CW) {
             _this->selectDemodByID(RADIO_DEMOD_CW);
         };
         ImGui::NextColumn();
-        if (ImGui::RadioButton(CONCAT("RAW##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_RAW) && _this->selectedDemodID != RADIO_DEMOD_RAW) {
+        if (ImGui::RadioButton("RAW", _this->selectedDemodID == RADIO_DEMOD_RAW) && _this->selectedDemodID != RADIO_DEMOD_RAW) {
             _this->selectDemodByID(RADIO_DEMOD_RAW);
         };
-        if (ImGui::RadioButton(CONCAT("DRM##_", _this->name), _this->selectedDemodID == RADIO_DEMOD_DRM) && _this->selectedDemodID != RADIO_DEMOD_DRM) {
+        if (ImGui::RadioButton("DRM", _this->selectedDemodID == RADIO_DEMOD_DRM) && _this->selectedDemodID != RADIO_DEMOD_DRM) {
             _this->selectDemodByID(RADIO_DEMOD_DRM);
         };
         ImGui::NextColumn();
@@ -222,18 +223,18 @@ private:
         ImGui::EndGroup();
 
         if (!_this->bandwidthLocked) {
-            ImGui::LeftLabel("Bandwidth");
+            ImGui::LeftLabel(_L("Bandwidth"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::InputFloat(("##_radio_bw_" + _this->name).c_str(), &_this->bandwidth, 1, 100, "%.0f")) {
+            if (ImGui::InputFloat("##_radio_bw", &_this->bandwidth, 1, 100, "%.0f")) {
                 _this->bandwidth = std::clamp<float>(_this->bandwidth, _this->minBandwidth, _this->maxBandwidth);
                 _this->setBandwidth(_this->bandwidth);
             }
         }
 
         // VFO snap interval
-        ImGui::LeftLabel("Snap Interval");
+        ImGui::LeftLabel(_L("Snap Interval"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::InputInt(("##_radio_snap_" + _this->name).c_str(), &_this->snapInterval, 1, 100)) {
+        if (ImGui::InputInt("##_radio_snap", &_this->snapInterval, 1, 100)) {
             if (_this->snapInterval < 1) { _this->snapInterval = 1; }
             _this->vfo->setSnapInterval(_this->snapInterval);
             config.acquire();
@@ -243,73 +244,82 @@ private:
 
         // Deemphasis mode
         if (_this->deempAllowed) {
-            ImGui::LeftLabel("De-emphasis");
+            ImGui::LeftLabel(_L("De-emphasis"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::Combo(("##_radio_wfm_deemp_" + _this->name).c_str(), &_this->deempId, _this->deempModes.txt)) {
+            if (ImGui::Combo("##_radio_wfm_deemp", &_this->deempId, _this->deempModes.txt)) {
                 _this->setDeemphasisMode(_this->deempModes[_this->deempId]);
             }
         }
 
         if (_this->anrAllowed) {
+            ImGui::PushID("radio_anr");
             // ANR
-            if (ImGui::Checkbox(("Adaptive Noise Reduction##_radio_anr_ena_" + _this->name).c_str(), &_this->anrEnabled)) {
+            if (ImGui::Checkbox(_L("Noise Reduction"), &_this->anrEnabled)) {
                 _this->setANREnabled(_this->anrEnabled);
             }
             if (!_this->anrEnabled && _this->enabled) { style::beginDisabled(); }
             ImGui::SameLine();
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderInt(("##_radio_anr_lvl_" + _this->name).c_str(), &_this->anrIntensity, 0, 30, "%d")) {
+            if (ImGui::SliderInt("##level", &_this->anrIntensity, 0, 30, "%d")) {
                 _this->setANRIntensity(_this->anrIntensity);
             }
             if (!_this->anrEnabled && _this->enabled) { style::endDisabled(); }
+            ImGui::PopID();
         }
 
         // Noise blanker
         if (_this->nbAllowed) {
-            if (ImGui::Checkbox(("Noise blanker (W.I.P.)##_radio_nb_ena_" + _this->name).c_str(), &_this->nbEnabled)) {
+            ImGui::PushID("radio_nb");
+            if (ImGui::Checkbox(_L("Noise blanker"), &_this->nbEnabled)) {
                 _this->setNBEnabled(_this->nbEnabled);
             }
             if (!_this->nbEnabled && _this->enabled) { style::beginDisabled(); }
             ImGui::SameLine();
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderFloat(("##_radio_nb_lvl_" + _this->name).c_str(), &_this->nbLevel, _this->MIN_NB, _this->MAX_NB, "%.3fdB")) {
+            if (ImGui::SliderFloat("##level", &_this->nbLevel, _this->MIN_NB, _this->MAX_NB, "%.3fdB")) {
                 _this->setNBLevel(_this->nbLevel);
             }
             if (!_this->nbEnabled && _this->enabled) { style::endDisabled(); }
+            ImGui::PopID();
         }
 
         // Squelch
-        if (ImGui::Checkbox(("Squelch##_radio_sqelch_ena_" + _this->name).c_str(), &_this->squelchEnabled)) {
+        ImGui::PushID("radio_squelch");
+        if (ImGui::Checkbox(_L("Squelch"), &_this->squelchEnabled)) {
             _this->setSquelchEnabled(_this->squelchEnabled);
         }
         if (!_this->squelchEnabled && _this->enabled) { style::beginDisabled(); }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::SliderFloat(("##_radio_sqelch_lvl_" + _this->name).c_str(), &_this->squelchLevel, _this->MIN_SQUELCH, _this->MAX_SQUELCH, "%.3fdB")) {
+        if (ImGui::SliderFloat("##level", &_this->squelchLevel, _this->MIN_SQUELCH, _this->MAX_SQUELCH, "%.3fdB")) {
             _this->setSquelchLevel(_this->squelchLevel);
         }
         if (!_this->squelchEnabled && _this->enabled) { style::endDisabled(); }
+        ImGui::PopID();
 
         // FM IF Noise Reduction
         if (_this->FMIFNRAllowed) {
-            if (ImGui::Checkbox(("IF Noise Reduction##_radio_fmifnr_ena_" + _this->name).c_str(), &_this->FMIFNREnabled)) {
+            ImGui::PushID("radio_fm_if_nr");
+            if (ImGui::Checkbox(_L("IF Noise Reduction"), &_this->FMIFNREnabled)) {
                 _this->setFMIFNREnabled(_this->FMIFNREnabled);
             }
             if (_this->selectedDemodID == RADIO_DEMOD_NFM) {
                 if (!_this->FMIFNREnabled && _this->enabled) { style::beginDisabled(); }
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-                if (ImGui::Combo(("##_radio_fmifnr_ena_" + _this->name).c_str(), &_this->fmIFPresetId, _this->ifnrPresets.txt)) {
+                if (ImGui::Combo("##level", &_this->fmIFPresetId, _this->ifnrPresets.txt)) {
                     _this->setIFNRPreset(_this->ifnrPresets[_this->fmIFPresetId]);
                 }
                 if (!_this->FMIFNREnabled && _this->enabled) { style::endDisabled(); }
             }
+            ImGui::PopID();
         }
 
         // Demodulator specific menu
         _this->selectedDemod->showMenu();
 
         if (!_this->enabled) { style::endDisabled(); }
+        ImGui::PopID();
     }
 
     demod::Demodulator* instantiateDemod(DemodID id) {

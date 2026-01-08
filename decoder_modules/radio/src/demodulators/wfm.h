@@ -108,27 +108,36 @@ namespace demod {
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
 
-            if (ImGui::Checkbox(("Stereo##_radio_wfm_stereo_" + name).c_str(), &_stereo)) {
+            ImGui::PushID("wfm_stereo");
+            if (ImGui::Checkbox(_L("Stereo"), &_stereo)) {
                 setStereo(_stereo);
                 _config->acquire();
                 _config->conf[name][getName()]["stereo"] = _stereo;
                 _config->release(true);
             }
-            if (ImGui::Checkbox(("Low Pass##_radio_wfm_lowpass_" + name).c_str(), &_lowPass)) {
+            ImGui::PopID();
+
+            ImGui::PushID("wfm_lowpass");
+            if (ImGui::Checkbox(_L("Low Pass"), &_lowPass)) {
                 demod.setLowPass(_lowPass);
                 _config->acquire();
                 _config->conf[name][getName()]["lowPass"] = _lowPass;
                 _config->release(true);
             }
-            if (ImGui::Checkbox(("Decode RDS##_radio_wfm_rds_" + name).c_str(), &_rds)) {
+            ImGui::PopID();
+
+            ImGui::PushID("rds_ena");
+            if (ImGui::Checkbox(_L("Decode RDS"), &_rds)) {
                 demod.setRDSOut(_rds);
                 _config->acquire();
                 _config->conf[name][getName()]["rds"] = _rds;
                 _config->release(true);
             }
+            ImGui::PopID();
 
             // multuipath stages
-            if (ImGui::Checkbox(("Multipath Filter##_radio_multipath_ena_" + name).c_str(), &multipathenabled)) {
+            ImGui::PushID("multipath_ena");
+            if (ImGui::Checkbox(_L("Multipath Filter"), &multipathenabled)) {
                 if (multipathenabled) {
                     demod.setMultipathStages(multipathstages);
                 }
@@ -136,6 +145,8 @@ namespace demod {
                     demod.setMultipathStages(0);
                 }
             }
+            ImGui::PopID();
+
             if (!multipathenabled) { style::beginDisabled(); }
             ImGui::SameLine();
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
@@ -146,12 +157,14 @@ namespace demod {
 
             // TODO: This might break when the entire radio module is disabled
             if (!_rds) { ImGui::BeginDisabled(); }
-            if (ImGui::Checkbox(("Advanced RDS Info##_radio_wfm_rds_info_" + name).c_str(), &_rdsInfo)) {
+            ImGui::PushID("rds_adv_info");
+            if (ImGui::Checkbox(_L("Advanced RDS Info"), &_rdsInfo)) {
                 setAdvancedRds(_rdsInfo);
                 _config->acquire();
                 _config->conf[name][getName()]["rdsInfo"] = _rdsInfo;
                 _config->release(true);
             }
+            ImGui::PopID();
             ImGui::SameLine();
             ImGui::FillWidth();
             if (ImGui::Combo(("##_radio_wfm_rds_region_" + name).c_str(), &rdsRegionId, rdsRegions.txt)) {

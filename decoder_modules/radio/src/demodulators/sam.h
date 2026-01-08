@@ -50,7 +50,7 @@ namespace demod {
 
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
-            ImGui::LeftLabel("AGC Attack");
+            ImGui::LeftLabel(_L("AGC Attack"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             if (ImGui::SliderFloat(("##_radio_am_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
                 demod.setAGCAttack(agcAttack / getIFSampleRate());
@@ -58,7 +58,7 @@ namespace demod {
                 _config->conf[name][getName()]["agcAttack"] = agcAttack;
                 _config->release(true);
             }
-            ImGui::LeftLabel("AGC Decay");
+            ImGui::LeftLabel(_L("AGC Decay"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             if (ImGui::SliderFloat(("##_radio_am_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
                 demod.setAGCDecay(agcDecay / getIFSampleRate());
@@ -66,14 +66,18 @@ namespace demod {
                 _config->conf[name][getName()]["agcDecay"] = agcDecay;
                 _config->release(true);
             }
-            if (ImGui::Checkbox(("Carrier AGC##_radio_am_carrier_agc_" + name).c_str(), &carrierAgc)) {
+            ImGui::PushID("sam_carrier_agc");
+            if (ImGui::Checkbox(_L("Carrier AGC"), &carrierAgc)) {
                 demod.setAGCMode(carrierAgc ? dsp::demod::SAM<dsp::stereo_t>::AGCMode::CARRIER : dsp::demod::SAM<dsp::stereo_t>::AGCMode::AUDIO);
                 _config->acquire();
                 _config->conf[name][getName()]["carrierAgc"] = carrierAgc;
                 _config->release(true);
             }
+            ImGui::PopID();
+        
             bool stero = (_mode == dsp::demod::SAM<dsp::stereo_t>::STEREO);
-            if (ImGui::Checkbox(("Stereo Mode##_radio_sam_stereo_mode_" + name).c_str(), &stero)) {
+            ImGui::PushID("sam_stereo_mode");
+            if (ImGui::Checkbox(_L("Stereo"), &stero)) {
                 if (!stero) {
                     _mode = dsp::demod::SAM<dsp::stereo_t>::SAM_MODE;
                 }
@@ -85,6 +89,7 @@ namespace demod {
                 _config->conf[name][getName()]["stereoMode"] = (_mode == dsp::demod::SAM<dsp::stereo_t>::STEREO);
                 _config->release(true);
             }
+            ImGui::PopID();
         }
 
         void setBandwidth(double bandwidth) { demod.setBandwidth(bandwidth); }
