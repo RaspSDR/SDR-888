@@ -112,7 +112,7 @@ namespace backend {
 
         // Create application window
         ImGui_ImplWin32_EnableDpiAwareness();
-        const wchar_t* class_name = L"SDR++ Win32 Class";
+        const wchar_t* class_name = L"SDR-888 Win32 Class";
         g_wc = { sizeof(g_wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, class_name, nullptr };
 
         // load icon
@@ -135,10 +135,10 @@ namespace backend {
         RECT wr = { posX, posY, posX + winWidth, posY + winHeight };
         AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
 
-        std::string titleA = std::string("SDR++ v") + VERSION_STR + " (Built at " __TIME__ ", " __DATE__ ")";
+        std::string titleA = std::string("SDR-888 v") + VERSION_STR + " (Built at " __TIME__ ", " __DATE__ ")";
         std::wstring title = to_wstring(titleA);
 
-        g_hWnd = ::CreateWindowW(g_wc.lpszClassName, title.empty() ? L"SDR++" : title.c_str(), WS_OVERLAPPEDWINDOW, posX, posY,
+        g_hWnd = ::CreateWindowW(g_wc.lpszClassName, title.empty() ? L"SDR-888" : title.c_str(), WS_OVERLAPPEDWINDOW, posX, posY,
                                  wr.right - wr.left, wr.bottom - wr.top, nullptr, nullptr, g_wc.hInstance, nullptr);
         if (!g_hWnd) {
             ::UnregisterClassW(g_wc.lpszClassName, g_wc.hInstance);
