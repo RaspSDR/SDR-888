@@ -4,6 +4,7 @@
 #include <config.h>
 #include <utils/flog.h>
 #include <filesystem>
+#include <gui/gui.h>
 
 namespace style {
     ImFont* baseFont;
@@ -30,7 +31,7 @@ namespace style {
         ImFontGlyphRangesBuilder baseBuilder;
         baseBuilder.AddRanges(fonts->GetGlyphRangesDefault());
         baseBuilder.AddRanges(fonts->GetGlyphRangesCyrillic());
-        baseBuilder.AddRanges(fonts->GetGlyphRangesChineseFull());
+        baseBuilder.AddRanges(gui::i18n.BuildGlyphRanges().data());
         baseBuilder.BuildRanges(&baseRanges);
 
         // Create big font range
@@ -47,7 +48,7 @@ namespace style {
 
 #if defined(_WIN32)
         std::string fontPath = std::getenv("WINDIR") + std::string("\\Fonts\\simhei.ttf");
-#elif defined(_OSX_)
+#elif defined(__APPLE__)
         std::string fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
 #else
         std::string fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
