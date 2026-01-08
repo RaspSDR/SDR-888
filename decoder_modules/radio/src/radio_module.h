@@ -3,7 +3,6 @@
 #include <module.h>
 #include <gui/gui.h>
 #include <gui/style.h>
-#include <core.h>
 #include <signal_path/signal_path.h>
 #include <config.h>
 #include <dsp/chain.h>
@@ -109,8 +108,8 @@ public:
         // Start stream, the rest was started when selecting the demodulator
         stream.start();
 
-        // Register self
-        core::decoderManager.registerDecoder(name, menuHandler, this);
+        // Register the menu
+        gui::menu.registerEntry(name, menuHandler, this, this);
 
         // Register the module interface
         core::modComManager.registerInterface("radio", name, moduleInterfaceHandler, this);
@@ -118,7 +117,7 @@ public:
 
     ~RadioModule() {
         core::modComManager.unregisterInterface(name);
-        core::decoderManager.removeDecoder(name);
+        gui::menu.removeEntry(name);
         stream.stop();
         if (enabled) {
             disable();
