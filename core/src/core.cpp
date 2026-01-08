@@ -342,7 +342,7 @@ int sdrpp_main(int argc, char* argv[]) {
     SmGui::init(false);
 
     flog::info("Loading language: {0}", lang);
-    if (!gui::i18n::instance().load(resDir, lang)) {
+    if (!gui::i18n.load(resDir, lang)) {
         flog::error("Could not load language file for language {0}", lang);
         return -1;
     }

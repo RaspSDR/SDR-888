@@ -14,6 +14,9 @@ namespace gui {
     SDRPP_EXPORT Menu menu;
     SDRPP_EXPORT ThemeManager themeManager;
     SDRPP_EXPORT MainWindow mainWindow;
+    SDRPP_EXPORT I18N i18n;
 
     void selectSource(std::string name);
 };
+
+#define _L(key) gui::i18n.get(key)
