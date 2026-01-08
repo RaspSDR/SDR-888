@@ -13,7 +13,6 @@ namespace style {
     bool loadFonts(std::string resDir);
     void beginDisabled();
     void endDisabled();
-    void testtt();
 }
 
 namespace ImGui {

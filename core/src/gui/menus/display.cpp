@@ -28,9 +28,11 @@ namespace displaymenu {
     int fftSmoothingSpeed = 100;
     bool snrSmoothing = false;
     int snrSmoothingSpeed = 20;
+    int languageId = 0;
 
     OptionList<int, int> fftSizes;
     OptionList<float, float> uiScales;
+    OptionList<std::string, std::string> languageOptions;
 
     const IQFrontEnd::FFTWindow fftWindowList[] = {
         IQFrontEnd::FFTWindow::RECTANGULAR,
@@ -110,6 +112,11 @@ namespace displaymenu {
         uiScales.define(3.0f, "300%", 3.0f);
         uiScales.define(4.0f, "400%", 4.0f);
         uiScaleId = uiScales.valueId(style::uiScale);
+
+        languageOptions.define("en", _L("English"), "en");
+        languageOptions.define("zh_CN", _L("Chinese (Simplified)"), "zh_CN");
+        languageOptions.define("ja_JP", _L("Japanese"), "ja_JP");
+        languageId = languageOptions.valueId(core::configManager.conf["language"]);
     }
 
     void setWaterfallShown(bool shown) {
@@ -128,24 +135,25 @@ namespace displaymenu {
 
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
-        if (ImGui::Checkbox("Show Waterfall##_sdrpp", &showWaterfall)) {
+        ImGui::PushID("_sdrpp");
+        if (ImGui::Checkbox(_L("Show Waterfall"), &showWaterfall)) {
             setWaterfallShown(showWaterfall);
         }
 
-        if (ImGui::Checkbox("Full Waterfall Update##_sdrpp", &fullWaterfallUpdate)) {
+        if (ImGui::Checkbox(_L("Full Waterfall Update"), &fullWaterfallUpdate)) {
             gui::waterfall.setFullWaterfallUpdate(fullWaterfallUpdate);
             core::configManager.acquire();
             core::configManager.conf["fullWaterfallUpdate"] = fullWaterfallUpdate;
             core::configManager.release(true);
         }
 
-        if (ImGui::Checkbox("Lock Menu Order##_sdrpp", &gui::menu.locked)) {
+        if (ImGui::Checkbox(_L("Lock Menu Order"), &gui::menu.locked)) {
             core::configManager.acquire();
             core::configManager.conf["lockMenuOrder"] = gui::menu.locked;
             core::configManager.release(true);
         }
 
-        if (ImGui::Checkbox("FFT Hold##_sdrpp", &fftHold)) {
+        if (ImGui::Checkbox(_L("FFT Hold"), &fftHold)) {
             gui::waterfall.setFFTHold(fftHold);
             core::configManager.acquire();
             core::configManager.conf["fftHold"] = fftHold;
@@ -160,7 +168,7 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        if (ImGui::Checkbox("FFT Smoothing##_sdrpp", &fftSmoothing)) {
+        if (ImGui::Checkbox(_L("FFT Smoothing"), &fftSmoothing)) {
             gui::waterfall.setFFTSmoothing(fftSmoothing);
             core::configManager.acquire();
             core::configManager.conf["fftSmoothing"] = fftSmoothing;
@@ -176,7 +184,7 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        if (ImGui::Checkbox("SNR Smoothing##_sdrpp", &snrSmoothing)) {
+        if (ImGui::Checkbox(_L("SNR Smoothing"), &snrSmoothing)) {
             gui::waterfall.setSNRSmoothing(snrSmoothing);
             core::configManager.acquire();
             core::configManager.conf["snrSmoothing"] = snrSmoothing;
@@ -192,7 +200,7 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        ImGui::LeftLabel("High-DPI Scaling");
+        ImGui::LeftLabel(_L("High-DPI Scaling"));
         ImGui::FillWidth();
         if (ImGui::Combo("##sdrpp_ui_scale", &uiScaleId, uiScales.txt)) {
             core::configManager.acquire();
@@ -201,7 +209,16 @@ namespace displaymenu {
             restartRequired = true;
         }
 
-        ImGui::LeftLabel("FFT Framerate");
+        ImGui::LeftLabel(_L("Language"));
+        ImGui::FillWidth();
+        if (ImGui::Combo("##sdrpp_language", &languageId, languageOptions.txt)) {
+            core::configManager.acquire();
+            core::configManager.conf["language"] = languageOptions[languageId];
+            core::configManager.release(true);
+            restartRequired = true;
+        }
+
+        ImGui::LeftLabel(_L("FFT Framerate"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::InputInt("##sdrpp_fft_rate", &fftRate, 1, 10)) {
             fftRate = std::max<int>(1, fftRate);
@@ -212,7 +229,7 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        ImGui::LeftLabel("FFT Size");
+        ImGui::LeftLabel(_L("FFT Size"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::Combo("##sdrpp_fft_size", &fftSizeId, fftSizes.txt)) {
             sigpath::iqFrontEnd.setFFTSize(fftSizes.value(fftSizeId));
@@ -221,7 +238,7 @@ namespace displaymenu {
             core::configManager.release(true);
         }
 
-        ImGui::LeftLabel("FFT Window");
+        ImGui::LeftLabel(_L("FFT Window"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::Combo("##sdrpp_fft_window", &selectedWindow, "Rectangular\0Blackman\0Nuttall\0")) {
             sigpath::iqFrontEnd.setFFTWindow(fftWindowList[selectedWindow]);
@@ -231,7 +248,7 @@ namespace displaymenu {
         }
 
         if (colorMapNames.size() > 0) {
-            ImGui::LeftLabel("Color Map");
+            ImGui::LeftLabel(_L("Color Map"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
             if (ImGui::Combo("##_sdrpp_color_map_sel", &colorMapId, colorMapNamesTxt.c_str())) {
                 colormaps::Map map = colormaps::maps[colorMapNames[colorMapId]];
@@ -241,11 +258,12 @@ namespace displaymenu {
                 core::configManager.release(true);
                 colorMapAuthor = map.author;
             }
-            ImGui::Text("Color map Author: %s", colorMapAuthor.c_str());
+            ImGui::Text(_L("Color map Author: %s"), colorMapAuthor.c_str());
         }
+        ImGui::PopID();
 
         if (restartRequired) {
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Restart required.");
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "%s", _L("Restart required."));
         }
     }
 }

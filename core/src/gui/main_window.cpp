@@ -27,9 +27,10 @@
 #include <gui/colormaps.h>
 #include <gui/widgets/snr_meter.h>
 #include <gui/tuner.h>
+#include <gui/i18n.h>
 
 void MainWindow::init() {
-    LoadingScreen::show("Initializing UI");
+    LoadingScreen::show(_L("Initializing UI"));
     gui::waterfall.init();
     gui::waterfall.setRawFFTSize(fftSize);
 
@@ -70,13 +71,13 @@ void MainWindow::init() {
         gui::menu.order.push_back(opt);
     }
 
-    gui::menu.registerEntry("Source", sourcemenu::draw, NULL);
-    gui::menu.registerEntry("Sinks", sinkmenu::draw, NULL);
-    gui::menu.registerEntry("Band Plan", bandplanmenu::draw, NULL);
-    gui::menu.registerEntry("Display", displaymenu::draw, NULL);
-    gui::menu.registerEntry("Theme", thememenu::draw, NULL);
-    gui::menu.registerEntry("VFO Color", vfo_color_menu::draw, NULL);
-    gui::menu.registerEntry("Module Manager", module_manager_menu::draw, NULL);
+    gui::menu.registerEntry(_L("Source"), sourcemenu::draw, NULL);
+    gui::menu.registerEntry(_L("Sinks"), sinkmenu::draw, NULL);
+    gui::menu.registerEntry(_L("Band Plan"), bandplanmenu::draw, NULL);
+    gui::menu.registerEntry(_L("Display"), displaymenu::draw, NULL);
+    gui::menu.registerEntry(_L("Theme"), thememenu::draw, NULL);
+    gui::menu.registerEntry(_L("VFO Color"), vfo_color_menu::draw, NULL);
+    gui::menu.registerEntry(_L("Module Manager"), module_manager_menu::draw, NULL);
 
     gui::freqSelect.init();
 
