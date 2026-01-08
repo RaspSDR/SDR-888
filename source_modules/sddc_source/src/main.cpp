@@ -57,6 +57,12 @@ public:
         handler.tuneHandler = tune;
         handler.stream = &ddc.out;
 
+        xtalrates.define(128000000, "128MHz", 128000000);
+        xtalrates.define(96000000, "96MHz", 96000000);
+        xtalrates.define(64000000, "64MHz", 64000000);
+
+        xtalId = xtalrates.valueId(64000000);
+        xtal_freq = xtalrates[xtalId];
         // Refresh devices
         refresh();
 
@@ -198,13 +204,13 @@ private:
 
             // define supported samplerates
             samplerates.clear();
-            sampleRate = 64e6;
+            sampleRate = xtal_freq / 2;
             for (int i = 1; i <= 6; ++i) {
                 samplerates.define(sampleRate, getBandwdithScaled(sampleRate), sampleRate);
                 sampleRate /= 2;
             }
 
-            sampleRate = 32e6;
+            sampleRate = xtal_freq / 2;
             srId = samplerates.valueId(sampleRate);
         }
         else {
@@ -291,13 +297,6 @@ private:
         if (err) {
             flog::error("Failed to open device: {}", (int)err);
             return;
-        }
-
-        xtal_freq = sampleRate * 2;
-        if (sampleRate < 32e6) {
-            xtal_freq = 64e6;
-        } else {
-            xtal_freq = sampleRate * 2;
         }
 
         // set HF or VHF first
@@ -399,7 +398,6 @@ private:
 
         if (_this->running) { SmGui::BeginDisabled(); }
 
-        SmGui::FillWidth();
         SmGui::ForceSync();
         if (SmGui::Combo("##_sddc_dev_sel", &_this->selectedDevId, _this->devices.txt)) {
             _this->select(_this->devices.key(_this->selectedDevId));
@@ -408,7 +406,31 @@ private:
             config.conf["device"] = _this->selectedSerial;
             config.release(true);
         }
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Button(_L("Refresh"))) {
+            _this->refresh();
+            _this->select(_this->selectedSerial);
+            core::setInputSampleRate(_this->sampleRate);
+        }
 
+        SmGui::LeftLabel(_L("Sample Rate"));
+        SmGui::FillWidth();
+        if (SmGui::Combo("##_sddc_xtal_sel", &_this->xtalId, _this->xtalrates.txt)) {
+            _this->xtal_freq = _this->xtalrates.value(_this->xtalId);
+            _this->select(_this->devices.key(_this->selectedDevId));
+            core::setInputSampleRate(_this->sampleRate);
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["xtal_freq"] = _this->xtalrates.key(_this->xtalId);
+                config.release(true);
+            }
+        }
+
+        SmGui::LeftLabel(_L("Bandwidth"));
+        SmGui::FillWidth();
+        SmGui::ForceSync();
         if (SmGui::Combo("##_sddc_sr_sel", &_this->srId, _this->samplerates.txt)) {
             _this->sampleRate = _this->samplerates.value(_this->srId);
             core::setInputSampleRate(_this->sampleRate);
@@ -417,15 +439,6 @@ private:
                 config.conf["devices"][_this->selectedSerial]["samplerate"] = _this->samplerates.key(_this->srId);
                 config.release(true);
             }
-        }
-
-        SmGui::SameLine();
-        SmGui::FillWidth();
-        SmGui::ForceSync();
-        if (SmGui::Button(_L("Refresh"))) {
-            _this->refresh();
-            _this->select(_this->selectedSerial);
-            core::setInputSampleRate(_this->sampleRate);
         }
 
         SmGui::LeftLabel(_L("Antenna"));
@@ -541,6 +554,9 @@ private:
     int selectedDevId = 0;
 
     uint32_t xtal_freq;
+    OptionList<int, uint32_t> xtalrates;
+    int xtalId = 0;
+
     OptionList<int, double> samplerates;
     int srId = 0;
     double sampleRate;
