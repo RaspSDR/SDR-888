@@ -206,6 +206,7 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["uiScale"] = 1.0f;
 #endif
 
+    defConfig["language"] = "en";
     defConfig["modules"] = json::array();
 
     defConfig["offsets"]["SpyVerter"] = 120000000.0;
@@ -314,6 +315,9 @@ int sdrpp_main(int argc, char* argv[]) {
     // Load UI scaling
     style::uiScale = core::configManager.conf["uiScale"];
 
+    // load language
+    std::string lang = core::configManager.conf["language"];
+
     core::configManager.release(true);
 
     if (serverMode) { return server::main(); }
@@ -336,6 +340,12 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Initialize SmGui in normal mode
     SmGui::init(false);
+
+    flog::info("Loading language: {0}", lang);
+    if (!gui::i18n::instance().load(resDir, lang)) {
+        flog::error("Could not load language file for language {0}", lang);
+        return -1;
+    }
 
     if (!style::loadFonts(resDir)) { return -1; }
     thememenu::init(resDir);

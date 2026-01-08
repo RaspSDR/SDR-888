@@ -80,9 +80,9 @@ namespace module_manager_menu {
         });
 
         // Add module row with slightly different settings
-        if (ImGui::BeginTable("Module Manager Add Table", 3)) {
-            ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Type");
+        if (ImGui::BeginTable(_L("Module Manager Add Table"), 3)) {
+            ImGui::TableSetupColumn(_L("Name"));
+            ImGui::TableSetupColumn(_L("Type"));
             ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, cellWidth + cellpad.x);
             
             ImGui::TableNextRow();

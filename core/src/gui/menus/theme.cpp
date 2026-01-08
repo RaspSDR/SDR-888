@@ -41,7 +41,7 @@ namespace thememenu {
 
     void draw(void* ctx) {
         float menuWidth = ImGui::GetContentRegionAvail().x;
-        ImGui::LeftLabel("Theme");
+        ImGui::LeftLabel(_L("Theme"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::Combo("##theme_select_combo", &themeId, themeNamesTxt.c_str())) {
             applyTheme();

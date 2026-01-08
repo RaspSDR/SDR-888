@@ -30,6 +30,7 @@ namespace style {
         ImFontGlyphRangesBuilder baseBuilder;
         baseBuilder.AddRanges(fonts->GetGlyphRangesDefault());
         baseBuilder.AddRanges(fonts->GetGlyphRangesCyrillic());
+        baseBuilder.AddRanges(fonts->GetGlyphRangesChineseFull());
         baseBuilder.BuildRanges(&baseRanges);
 
         // Create big font range
@@ -40,14 +41,21 @@ namespace style {
 
         // Create huge font range
         ImFontGlyphRangesBuilder hugeBuilder;
-        const ImWchar hugeRange[] = { 'S', 'S', 'D', 'D', 'R', 'R', '-', '-', '8', '8', ' ', ' ', 0 };
+        const ImWchar hugeRange[] = { 'S', 'D', 'R', '-', '8', ' ', 0 };
         hugeBuilder.AddRanges(hugeRange);
         hugeBuilder.BuildRanges(&hugeRanges);
         
+        std::string fontPath = "/System/Library/Fonts/STHeiti Medium.ttc";
+        std::string fallbackFontPath = resDir + "/fonts/Roboto-Medium.ttf";
+        
+        if (!std::filesystem::exists(fontPath)) {
+            fontPath = fallbackFontPath;
+        }
+
         // Add bigger fonts for frequency select and title
-        baseFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 16.0f * uiScale, NULL, baseRanges.Data);
-        bigFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 45.0f * uiScale, NULL, bigRanges.Data);
-        hugeFont = fonts->AddFontFromFileTTF(((std::string)(resDir + "/fonts/Roboto-Medium.ttf")).c_str(), 128.0f * uiScale, NULL, hugeRanges.Data);
+        baseFont = fonts->AddFontFromFileTTF(fontPath.c_str(), 16.0f * uiScale, NULL, baseRanges.Data);
+        bigFont = fonts->AddFontFromFileTTF(fallbackFontPath.c_str(), 45.0f * uiScale, NULL, bigRanges.Data);
+        hugeFont = fonts->AddFontFromFileTTF(fallbackFontPath.c_str(), 128.0f * uiScale, NULL, hugeRanges.Data);
 
         return true;
     }
