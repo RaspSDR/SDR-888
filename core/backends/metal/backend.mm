@@ -102,7 +102,18 @@ static volatile bool g_shouldQuit = false;
     [super scrollWheel:event];
 }
 
-- (void)keyDown:(NSEvent*)event { [super keyDown:event]; }
+- (void)keyDown:(NSEvent*)event {
+    [super keyDown:event];
+    // Forward text input characters to Dear ImGui in case the NSTextInputClient
+    // responder isn't in the responder chain. This ensures ImGui receives
+    // composed/character input even when first responder handling is inconsistent.
+    NSString* chars = [event characters];
+    if (chars && [chars length] > 0) {
+        ImGuiIO& io = ImGui::GetIO();
+        io.AddInputCharactersUTF8(chars.UTF8String);
+    }
+}
+
 - (void)keyUp:(NSEvent*)event { [super keyUp:event]; }
 - (void)flagsChanged:(NSEvent*)event { [super flagsChanged:event]; }
 
