@@ -395,12 +395,13 @@ private:
 
     static void menuHandler(void* ctx) {
         SDDCSourceModule* _this = (SDDCSourceModule*)ctx;
+        ImGui::PushID(CONCAT("sddc_menu_", _this->name));
 
         if (_this->running) { SmGui::BeginDisabled(); }
 
         SmGui::FillWidth();
         SmGui::ForceSync();
-        if (SmGui::Combo(CONCAT("##_sddc_dev_sel_", _this->name), &_this->selectedDevId, _this->devices.txt)) {
+        if (SmGui::Combo("##_sddc_dev_sel", &_this->selectedDevId, _this->devices.txt)) {
             _this->select(_this->devices.key(_this->selectedDevId));
             core::setInputSampleRate(_this->sampleRate);
             config.acquire();
@@ -408,7 +409,7 @@ private:
             config.release(true);
         }
 
-        if (SmGui::Combo(CONCAT("##_sddc_sr_sel_", _this->name), &_this->srId, _this->samplerates.txt)) {
+        if (SmGui::Combo("##_sddc_sr_sel", &_this->srId, _this->samplerates.txt)) {
             _this->sampleRate = _this->samplerates.value(_this->srId);
             core::setInputSampleRate(_this->sampleRate);
             if (!_this->selectedSerial.empty()) {
@@ -421,14 +422,14 @@ private:
         SmGui::SameLine();
         SmGui::FillWidth();
         SmGui::ForceSync();
-        if (SmGui::Button(CONCAT("Refresh##_sddc_refr_", _this->name))) {
+        if (SmGui::Button(_L("Refresh"))) {
             _this->refresh();
             _this->select(_this->selectedSerial);
             core::setInputSampleRate(_this->sampleRate);
         }
 
-        SmGui::LeftLabel("Antenna");
-        if (SmGui::Combo(CONCAT("##_sddc_port_", _this->name), &_this->portId, _this->ports.txt)) {
+        SmGui::LeftLabel(_L("Antenna"));
+        if (SmGui::Combo("##_sddc_port", &_this->portId, _this->ports.txt)) {
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
                 config.conf["devices"][_this->selectedSerial]["port"] = _this->ports.key(_this->portId);
@@ -438,8 +439,8 @@ private:
             }
         }
 
-        SmGui::LeftLabel("ADC");
-        if (SmGui::Checkbox(CONCAT("RANDO##_sddc_rando_", _this->name), &_this->rando)) {
+        SmGui::LeftLabel(_L("ADC"));
+        if (SmGui::Checkbox(_L("RANDO"), &_this->rando)) {
             if (_this->running) {
                 sddc_enable_adc_rando(_this->openDev, _this->rando ? 1 : 0);                
             }
@@ -452,7 +453,7 @@ private:
         if (_this->running) { SmGui::EndDisabled(); }
 
         SmGui::SameLine();
-        if (SmGui::Checkbox(CONCAT("PGA##_sddc_pga_", _this->name), &_this->pga)) {
+        if (SmGui::Checkbox(_L("PGA"), &_this->pga)) {
             if (_this->running) {
                 sddc_enable_adc_pga(_this->openDev, _this->pga ? 1 : 0);                
             }
@@ -464,7 +465,7 @@ private:
         }
 
         SmGui::SameLine();
-        if (SmGui::Checkbox(CONCAT("Dither##_sddc_dither_", _this->name), &_this->dither)) {
+        if (SmGui::Checkbox(_L("Dither"), &_this->dither)) {
             if (_this->running) {
                 sddc_enable_adc_dither(_this->openDev, _this->dither ? 1 : 0);                
             }
@@ -474,9 +475,9 @@ private:
                 config.release(true);
             }
         }
-        SmGui::LeftLabel("RF Gain");
+        SmGui::LeftLabel(_L("RF Gain"));
         SmGui::FillWidth();
-        if (SmGui::SliderInt(CONCAT("##_sddc_rf_gain_", _this->name), &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
+        if (SmGui::SliderInt("##_sddc_rf_gain", &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
             if (_this->running) {
                 sddc_set_rf_gain(_this->openDev, _this->rfGain);
             }
@@ -487,9 +488,9 @@ private:
             }
         }
 
-        SmGui::LeftLabel("IF Gain");
+        SmGui::LeftLabel(_L("IF Gain"));
         SmGui::FillWidth();
-        if (SmGui::SliderInt(CONCAT("##_sddc_if_gain_", _this->name), &_this->ifGain, _this->if_gain_min, _this->if_gain_max)) {
+        if (SmGui::SliderInt("##_sddc_if_gain", &_this->ifGain, _this->if_gain_min, _this->if_gain_max)) {
             if (_this->running) {
                 sddc_set_if_gain(_this->openDev, _this->ifGain);
             }
@@ -500,7 +501,7 @@ private:
             }
         }
 
-        if (SmGui::Checkbox(CONCAT("Bias-T##_sddc_bias_", _this->name), &_this->bias)) {
+        if (SmGui::Checkbox(_L("Bias-T"), &_this->bias)) {
             if (_this->running) {
                 int flag = _this->port == PORT_HF ? 1 : 2;
                 sddc_enable_bias_tee(_this->openDev, _this->bias ? flag : 0);
@@ -512,6 +513,7 @@ private:
             }
         }
 
+        ImGui::PopID();
     }
 
     static void sddc_async_callback(const int16_t* buffer, uint32_t count, void* ctx) {

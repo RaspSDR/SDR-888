@@ -1,5 +1,6 @@
 #include <gui/dialogs/credits.h>
 #include <imgui.h>
+#include <gui/gui.h>
 #include <gui/icons.h>
 #include <gui/style.h>
 #include <config.h>
@@ -30,7 +31,7 @@ namespace credits {
         ImGui::Spacing();
         ImGui::Spacing();
 
-        ImGui::TextUnformatted("This software is based on SDR++ from Alexandre Rouma (ON5RYZ) . Modified by SDDC Lab.");
+        ImGui::TextUnformatted(_L("This software is based on SDR++ from Alexandre Rouma (ON5RYZ) . Modified by SDDC Lab."));
 
         ImGui::Spacing();
         ImGui::TextUnformatted("SDR-888 v" VERSION_STR " (Built at " __TIME__ ", " __DATE__ ")");

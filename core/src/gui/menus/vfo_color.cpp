@@ -77,11 +77,12 @@ namespace vfo_color_menu {
     }
 
     void draw(void* ctx) {
+        ImGui::PushID("vfo_color");
         ImGui::BeginTable("VFO Color Buttons Table", 2);
         ImGui::TableNextRow();
 
         ImGui::TableSetColumnIndex(0);
-        if (ImGui::Button("Auto Color##vfo_color", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+        if (ImGui::Button(_L("Auto Color"), ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
             float delta = 1.0f / (float)gui::waterfall.vfos.size();
             float hue = 0;
             for (auto& [name, vfo] : gui::waterfall.vfos) {
@@ -99,7 +100,7 @@ namespace vfo_color_menu {
         }
 
         ImGui::TableSetColumnIndex(1);
-        if (ImGui::Button("Clear All##vfo_color", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+        if (ImGui::Button(_L("Clear All"), ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
             for (auto& [name, vfo] : gui::waterfall.vfos) {
                 vfoColors[name] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
                 vfo->color = IM_COL32(255, 255, 255, 50);
@@ -119,7 +120,7 @@ namespace vfo_color_menu {
             if (vfoColors.find(name) != vfoColors.end()) {
                 col = vfoColors[name];
             }
-            if (ImGui::ColorEdit3(("##vfo_color_" + name).c_str(), (float*)&col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
+            if (ImGui::ColorEdit3(("##" + name).c_str(), (float*)&col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
                 vfoColors[name] = col;
                 vfo->color = IM_COL32((int)roundf(col.x * 255), (int)roundf(col.y * 255), (int)roundf(col.z * 255), 50);
                 core::configManager.acquire();
@@ -132,5 +133,6 @@ namespace vfo_color_menu {
             ImGui::TextUnformatted(name.c_str());
         }
         ImGui::EndTable();
+        ImGui::PopID();
     }
 }
