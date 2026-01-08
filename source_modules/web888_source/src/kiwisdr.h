@@ -51,7 +51,7 @@ public:
             wsClient.sendString("SET auth t=kiwi p=#");
             wsClient.sendString("SET AR OK in=" + std::to_string(IQDATA_FREQUENCY) + " out=48000");
             //            x.sendString("SET mod=am low_cut=-4900 high_cut=4900 freq=119604.33");
-            wsClient.sendString("SERVER DE CLIENT sdr++brown SND");
+            wsClient.sendString("SERVER DE CLIENT SDR-888 SND");
             wsClient.sendString("SET compression=0");
             wsClient.sendString("SET agc=0 hang=0 thresh=-100 slope=6 decay=1000 manGain=50");
             connected = true;
