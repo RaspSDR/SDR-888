@@ -37,18 +37,22 @@ namespace demod {
         void stop() { demod.stop(); }
 
         void showMenu() {
-            if (ImGui::Checkbox(("Low Pass##_radio_wfm_lowpass_" + name).c_str(), &_lowPass)) {
+            ImGui::PushID("nfm_lowpass");
+            if (ImGui::Checkbox(_L("Low Pass"), &_lowPass)) {
                 demod.setLowPass(_lowPass);
                 _config->acquire();
                 _config->conf[name][getName()]["lowPass"] = _lowPass;
                 _config->release(true);
             }
-            if (ImGui::Checkbox(("High Pass##_radio_wfm_highpass_" + name).c_str(), &_highPass)) {
+            ImGui::PopID();
+            ImGui::PushID("nfm_highpass");
+            if (ImGui::Checkbox(_L("High Pass"), &_highPass)) {
                 demod.setHighPass(_highPass);
                 _config->acquire();
                 _config->conf[name][getName()]["highPass"] = _highPass;
                 _config->release(true);
             }
+            ImGui::PopID();
         }
 
         void setBandwidth(double bandwidth) {

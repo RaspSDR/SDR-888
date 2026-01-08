@@ -70,7 +70,7 @@ namespace demod {
             if (snr == 0.0f)
                 return;
 
-            if (ImPlot::BeginPlot("Constellation", ImVec2(-1, 300), ImPlotFlags_NoMouseText | ImPlotFlags_NoInputs)) {
+            if (ImPlot::BeginPlot(_L("Constellation"), ImVec2(-1, 300), ImPlotFlags_NoMouseText | ImPlotFlags_NoInputs)) {
                 ImPlot::SetupAxes("", "", ImPlotAxisFlags_NoTickLabels, ImPlotAxisFlags_NoTickLabels);
                 ImPlot::SetupAxisLimits(ImAxis_X1, -1.5, 1.5, ImPlotCond_Always);
                 ImPlot::SetupAxisLimits(ImAxis_Y1, -1.5, 1.5, ImPlotCond_Always);
