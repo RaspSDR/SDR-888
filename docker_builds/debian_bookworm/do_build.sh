@@ -4,9 +4,9 @@ cd /root
 
 # Install dependencies and tools
 apt update
-apt install -y build-essential cmake git libfftw3-dev libglfw3-dev libvolk2-dev libzstd-dev libairspyhf-dev libairspy-dev \
-            libiio-dev libad9361-dev librtaudio-dev libhackrf-dev librtlsdr-dev libbladerf-dev liblimesuite-dev p7zip-full wget portaudio19-dev \
-            libcodec2-dev autoconf libtool xxd libspdlog-dev
+apt install -y build-essential cmake git libfftw3-dev libglfw3-dev libvolk2-dev libzstd-dev\
+            librtaudio-dev p7zip-full wget portaudio19-dev libfdk-aac-dev \
+            libcodec2-dev autoconf libtool xxd libspdlog-dev libcurl4-openssl-dev
 
 # Install SDRPlay libraries
 SDRPLAY_ARCH=$(dpkg --print-architecture)
