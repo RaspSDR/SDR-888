@@ -1,5 +1,4 @@
 #pragma once
-#include <GLFW/glfw3.h>
 #include <array>
 #include <imgui.h>
 #include <memory.h>
