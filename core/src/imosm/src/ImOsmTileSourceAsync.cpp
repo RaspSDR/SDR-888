@@ -2,6 +2,7 @@
 #include "ImOsmITileSaver.h"
 #include "ImOsmTile.h"
 #include "ImOsmTileAsync.h"
+#include <thread>
 #include <algorithm>
 
 namespace ImOsm {

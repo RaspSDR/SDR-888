@@ -50,7 +50,7 @@ Copy-ModuleDlls "decoder_modules/ft8_decoder/$build_type" 'ft8_decoder.dll'
 # Copy supporting libs
 # cp -Force 'C:/Program Files/PothosSDR/bin/pthreadVC2.dll' sdrpp_windows_x64/
 
-del -Force sdrpp_windows_x64.zip
+Remove-Item -Path 'sdrpp_windows_x64.zip' -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path sdrpp_windows_x64/ -DestinationPath sdrpp_windows_x64.zip
 
 # rm -Force -Recurse sdrpp_windows_x64

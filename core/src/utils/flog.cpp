@@ -235,7 +235,7 @@ namespace flog {
         return buf;
     }
 
-#ifndef _MSC_VER
+#ifdef __APPLE__
     std::string __toString__(size_t value) {
         char buf[64];
         if constexpr (sizeof(size_t) == 4) {
