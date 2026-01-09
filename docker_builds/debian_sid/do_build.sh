@@ -3,6 +3,7 @@ set -e
 cd /root
 
 # Install dependencies and tools
+sed -i 's/main$/main contrib non-free non-free-firmware/' /etc/apt/sources.list
 apt update
 apt install -y build-essential cmake git libfftw3-dev libglfw3-dev libvolk-dev libzstd-dev \
             librtaudio-dev p7zip-full wget portaudio19-dev libfdk-aac-dev \
