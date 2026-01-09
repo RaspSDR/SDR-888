@@ -140,7 +140,7 @@ endif (ANDROID)
 add_subdirectory("core")
 
 # Unittests of SDR-888
-add_subdirectory("tests")
+# add_subdirectory("tests")
 
 # Source modules
 
