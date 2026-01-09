@@ -98,52 +98,8 @@ typedef unsigned char					_BYTE;
 // bool seems not to work with linux TODO: Fix Me!
 typedef unsigned char/*bool*/			_BINARY;
 
-#if HAVE_STDINT_H
-# include <stdint.h>
-#elif HAVE_INTTYPES_H
-# include <inttypes.h>
-#elif defined(_WIN32)
-# ifndef HAVE_INT8_T
-#  define HAVE_INT8_T 1
-typedef signed char int8_t;
-# endif
-# ifndef HAVE_INT16_T
-#  define HAVE_INT16_T 1
-typedef signed __int16 int16_t;
-# endif
-# ifndef HAVE_INT32_T
-#  define HAVE_INT32_T 1
-typedef signed __int32 int32_t;
-# endif
-typedef unsigned char uint8_t;
-# ifndef HAVE_U_INT16_T
-#  define HAVE_U_INT16_T 1
-typedef unsigned __int16 uint16_t;
-# endif
-# ifndef HAVE_U_INT32_T
-#  define HAVE_U_INT32_T 1
-typedef unsigned __int32 uint32_t;
-# endif
-typedef signed __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#else
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-#ifndef _INT16_T
-    typedef signed int int16_t;
-#endif
-#ifndef _UINT16_T
-typedef unsigned int uint16_t;
-#endif
-#ifndef _INT32_T
-typedef signed long int32_t;
-#endif
-#ifndef _UINT32_T
-typedef unsigned long uint32_t;
-#endif
-typedef signed long long int64_t;
-typedef unsigned long long uint64_t;
-#endif
+#include <stdint.h>
+#include <climits>
 
 /* Define type-specific information */
 #define SIZEOF__BYTE					8

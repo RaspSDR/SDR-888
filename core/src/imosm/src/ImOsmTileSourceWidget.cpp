@@ -3,6 +3,7 @@
 #include "ImOsmTileLoaderImpl.h"
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <algorithm>
 
 namespace ImOsm {
 
