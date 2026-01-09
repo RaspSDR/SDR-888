@@ -34,7 +34,7 @@ endfunction()
 
 
 sddc_detect_platform(SDDC_PLATFORM)
-set(SDDC_VERSION 0.1.0)
+set(SDDC_VERSION 0.1.1)
 if (WIN32)
     set(SDDC_ARCHIVE
         "sddc-${SDDC_VERSION}-${SDDC_PLATFORM}.zip"
