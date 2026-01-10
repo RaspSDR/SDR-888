@@ -219,14 +219,6 @@ CDRMReceiver::UtilizeDRM(bool& bEnoughData)
         bEnoughData = true;
     }
 
-    /* Data decoding */
-    if (iDataStreamID != STREAM_ID_NOT_USED)
-    {
-        //cerr << "data decode processing" << endl;
-        if (DataDecoder.WriteData(Parameters, MSCUseBuf[iDataStreamID]))
-            bEnoughData = true;
-    }
-
     /* Source decoding (audio) */
     if (iAudioStreamID != STREAM_ID_NOT_USED)
     {
@@ -588,7 +580,6 @@ CDRMReceiver::InitsForAllModules()
     MSCMLCDecoder.SetInitFlag();
     MSCDemultiplexer.SetInitFlag();
     AudioSourceDecoder.SetInitFlag();
-    DataDecoder.SetInitFlag();
 
     Split.SetInitFlag();
     SplitAudio.SetInitFlag();
@@ -764,7 +755,6 @@ CDRMReceiver::InitsForDataParam()
     Parameters.SetNumDataDecoderBits(Parameters.
                                           GetStreamLen(iDataStreamID) *
                                           SIZEOF__BYTE);
-    DataDecoder.SetInitFlag();
 }
 
 void CDRMReceiver::SetFrequency(int iNewFreqkHz)

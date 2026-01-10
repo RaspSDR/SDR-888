@@ -31,7 +31,6 @@
 #include "../util/Modul.h"
 #include "../util/CRC.h"
 #include "../TextMessage.h"
-#include "../datadecoding/DataDecoder.h"
 #include "../util/Utilities.h"
 #include "AudioCodec.h"
 #include "../MSC/audiosuperframe.h"

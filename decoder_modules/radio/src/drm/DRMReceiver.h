@@ -41,7 +41,6 @@
 #include "OFDM.h"
 #include "MSCMultiplexer.h"
 #include "InputResample.h"
-#include "datadecoding/DataDecoder.h"
 #include "sourcedecoders/AudioSourceDecoder.h"
 #include "MLC/MLC.h"
 #include "interleaver/SymbolInterleaver.h"
@@ -239,9 +238,6 @@ public:
     CSyncUsingPil*			GetSyncUsPil() {
         return &SyncUsingPil;
     }
-    CDataDecoder*			GetDataDecoder() {
-        return &DataDecoder;
-    }
     CFreqSyncAcq*			GetFreqSyncAcq() {
         return &FreqSyncAcq;
     }
@@ -320,7 +316,6 @@ protected:
     CMSCMLCDecoder			MSCMLCDecoder;
     CMSCDemultiplexer		MSCDemultiplexer;
     CAudioSourceDecoder		AudioSourceDecoder;
-    CDataDecoder			DataDecoder;
     CSplit					Split;
     CSplit					SplitForIQRecord;
     CSplitAudio				SplitAudio;
