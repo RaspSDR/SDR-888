@@ -55,7 +55,7 @@ namespace style {
 #endif
         std::string fallbackFontPath = resDir + "/fonts/Roboto-Medium.ttf";
 
-        if (!std::filesystem::exists(fontPath)) {
+        if (!std::filesystem::exists(fontPath) || gui::i18n.currentLang == "en") {
             fontPath = fallbackFontPath;
         }
 
