@@ -88,7 +88,7 @@ jobs:
 
         steps:
         - uses: actions/checkout@v4
-        
+
         - name: Create Build Environment
           run: cmake -E make_directory ${{runner.workspace}}/build
 
@@ -116,11 +116,73 @@ jobs:
               name: sdrpp_macos_arm
               path: ${{runner.workspace}}/sdrpp_macos_arm.zip
 
+    build_ubuntu_24:
+        runs-on: ubuntu-24.04
+
+        steps:
+        - uses: actions/checkout@v4
+
+        - name: Create Build Environment
+          run: cmake -E make_directory ${{runner.workspace}}/build
+
+        - name: Install dependencies
+          run: sudo apt update -y && sudo apt install -y build-essential cmake git libfftw3-dev libglfw3-dev libvolk-dev libzstd-dev librtaudio-dev p7zip-full wget portaudio19-dev libfdk-aac-dev libcodec2-dev autoconf libtool xxd libspdlog-dev libcurl4-openssl-dev
+
+        - name: Prepare CMake
+          working-directory: ${{runner.workspace}}/build
+          run: cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Release
+
+        - name: Build
+          working-directory: ${{runner.workspace}}/build
+          run: make VERBOSE=1 -j2
+
+        - name: Create DPKG
+          working-directory: ${{runner.workspace}}
+          run: sh $GITHUB_WORKSPACE/make_debian_package.sh ./build 'libfftw3-single3, libglfw3, libvolk3.1t64, librtaudio6, libzstd1, libfdk-aac2'
+
+        - name: upload pkg
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_ubuntu_24
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+
+    build_ubuntu_22:
+        runs-on: ubuntu-22.04
+
+        steps:
+        - uses: actions/checkout@v4
+
+        - name: Create Build Environment
+          run: cmake -E make_directory ${{runner.workspace}}/build
+
+        - name: Install dependencies
+          run: sudo apt update -y && sudo apt install -y build-essential cmake git libfftw3-dev libglfw3-dev libvolk2-dev libzstd-dev librtaudio-dev p7zip-full wget portaudio19-dev libfdk-aac-dev libcodec2-dev autoconf libtool xxd libspdlog-dev libcurl4-openssl-dev
+
+        - name: Prepare CMake
+          working-directory: ${{runner.workspace}}/build
+          run: cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Release
+
+        - name: Build
+          working-directory: ${{runner.workspace}}/build
+          run: make VERBOSE=1 -j2
+
+        - name: Create DPKG
+          working-directory: ${{runner.workspace}}
+          run: sh $GITHUB_WORKSPACE/make_debian_package.sh ./build 'libfftw3-single3, libglfw3, libvolk2.5, librtaudio6, libzstd1, libfdk-aac2'
+
+        - name: upload pkg
+          uses: actions/upload-artifact@v4
+          with:
+              name: sdrpp_ubuntu_22
+              path: ${{runner.workspace}}/sdrpp_debian_amd64.deb
+
     create_full_archive:
         needs: [
           'build_windows',
           'build_macos_intel',
-          'build_macos_arm'
+          'build_macos_arm',
+          'build_ubuntu_24',
+          'build_ubuntu_22'
         ]
         runs-on: ubuntu-latest
 
@@ -133,7 +195,10 @@ jobs:
             mkdir sdrpp_all && 
             mv sdrpp_windows_x64/sdrpp_windows_x64.zip sdrpp_all/ && 
             mv sdrpp_macos_intel/sdrpp_macos_intel.zip sdrpp_all/ && 
-            mv sdrpp_macos_arm/sdrpp_macos_arm.zip sdrpp_all/
+            mv sdrpp_macos_arm/sdrpp_macos_arm.zip sdrpp_all/ &&
+            mv sdrpp_ubuntu_24/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_24_amd64.deb &&
+            mv sdrpp_ubuntu_22/sdrpp_debian_amd64.deb sdrpp_all/sdrpp_ubuntu_22_amd64.deb
+
         - uses: actions/upload-artifact@v4
           with:
             name: sdrpp_all
