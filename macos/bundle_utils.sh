@@ -7,29 +7,18 @@
 
 # bundle_is_not_to_be_installed [dylib_name]
 bundle_is_not_to_be_installed() {
+    local DEP_NAME=$(basename $1)
+
+    # if $1 is start with /usr/lib or /System, skip it
+    local DEP_PATH_DIR=$(dirname $1)
+    if [[ "$DEP_PATH_DIR" == "/usr/lib"* ]] || [[ "$DEP_PATH_DIR" == "/System"* ]]; then
+        echo 1
+        return
+    fi
+
     # NOTE: Customize this list to exclude libraries you don't want copied into the bundle
-    if [ "$1" = "libsdrpp_core.dylib" ]; then echo 1; fi
-    if [ "$1" = "OpenGL" ]; then echo 1; fi
-    if [ "$1" = "libc++.1.dylib" ]; then echo 1; fi
-    if [ "$1" = "libSystem.B.dylib" ]; then echo 1; fi
-    if [ "$1" = "Cocoa" ]; then echo 1; fi
-    if [ "$1" = "IOKit" ]; then echo 1; fi
-    if [ "$1" = "CoreFoundation" ]; then echo 1; fi
-    if [ "$1" = "AppKit" ]; then echo 1; fi
-    if [ "$1" = "CoreGraphics" ]; then echo 1; fi
-    if [ "$1" = "CoreServices" ]; then echo 1; fi
-    if [ "$1" = "Foundation" ]; then echo 1; fi
-    if [ "$1" = "CoreAudio" ]; then echo 1; fi
-    if [ "$1" = "AudioToolbox" ]; then echo 1; fi
-    if [ "$1" = "AudioUnit" ]; then echo 1; fi
-    if [ "$1" = "libobjc.A.dylib" ]; then echo 1; fi
-    if [ "$1" = "CFNetwork" ]; then echo 1; fi
-    if [ "$1" = "SystemConfiguration" ]; then echo 1; fi
-    if [ "$1" = "Security" ]; then echo 1; fi
-    if [ "$1" = "AppleFSCompression" ]; then echo 1; fi
-    if [ "$1" = "libsdrplay_api.so.3.14" ]; then echo 1; fi
-    if [ "$1" = "libsdrplay_api.so.3.15" ]; then echo 1; fi
-    if [ "$1" = "libxml2.2.dylib" ]; then echo 1; fi
+    if [ "$DEP_NAME" = "libsdrpp_core.dylib" ]; then echo 1; fi
+    if [ "$DEP_NAME" = "libsddc.dylib" ]; then echo 1; fi
 }
 
 # ========================= FOR INTERNAL USE ONLY =========================
@@ -146,7 +135,7 @@ bundle_install_binary() {
         local DEP_NAME=$(basename $DEP)
 
         # Skip if this dep is blacklisted
-        local NOT_TO_BE_INSTALLED=$(bundle_is_not_to_be_installed $DEP_NAME)
+        local NOT_TO_BE_INSTALLED=$(bundle_is_not_to_be_installed $DEP)
         if [ "$NOT_TO_BE_INSTALLED" = "1" ]; then
             continue
         fi

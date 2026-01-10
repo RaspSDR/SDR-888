@@ -32,8 +32,7 @@
 #endif
 #endif
 
-#if 1
-//#if defined(_WIN32)
+#if defined(_WIN32)
     const char* modulesDirectory = "./modules";
     const char* resourcesDirectory = "./res";
 #elif defined(IS_MACOS_BUNDLE)
