@@ -48,7 +48,7 @@ public:
         updateText();
     }
 
-    int size() const {
+    size_t size() const {
         return keys.size();
     }
 

@@ -286,18 +286,20 @@ namespace sourcemenu {
         float spacing = lineHeight - ImGui::GetTextLineHeight();
         bool running = gui::mainWindow.sdrIsRunning();
 
-        if (running) { style::beginDisabled(); }
+        if (sources.size() > 1) {
+            if (running) { style::beginDisabled(); }
+    
+            ImGui::SetNextItemWidth(itemWidth);
+            if (ImGui::Combo("##source", &sourceId, sources.txt)) {
+                std::string newSource = sources.value(sourceId);
+                selectSource(newSource);
+                core::configManager.acquire();
+                core::configManager.conf["source"] = newSource;
+                core::configManager.release(true);
+            }
 
-        ImGui::SetNextItemWidth(itemWidth);
-        if (ImGui::Combo("##source", &sourceId, sources.txt)) {
-            std::string newSource = sources.value(sourceId);
-            selectSource(newSource);
-            core::configManager.acquire();
-            core::configManager.conf["source"] = newSource;
-            core::configManager.release(true);
+            if (running) { style::endDisabled(); }
         }
-
-        if (running) { style::endDisabled(); }
 
         sigpath::sourceManager.showSelectedMenu();
 

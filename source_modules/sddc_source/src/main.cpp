@@ -435,6 +435,7 @@ private:
 
         if (_this->running) { SmGui::BeginDisabled(); }
 
+        SmGui::LeftLabel(_L("Device"));
         SmGui::ForceSync();
         if (SmGui::Combo("##_sddc_dev_sel", &_this->selectedDevId, _this->devices.txt)) {
             _this->select(_this->devices.key(_this->selectedDevId));
