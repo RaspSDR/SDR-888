@@ -33,10 +33,9 @@ ConfigManager config;
 #define TUNER_IF_FREQUENCY 4570000.0
 
 // GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode  
-#define BBRF103_GAINFACTOR 	(7.800e-8f)       // BBRF103
-#define HF103_GAINFACTOR   	(1.140e-8f)      // HF103
 #define RX888_GAINFACTOR   	(0.695e-8f)     // RX888
 #define RX888mk2_GAINFACTOR (1.080e-8f)      // RX888mk2
+#define RX888PRO_GAINFACTOR (0.695e-8f)    // RX888pro
 
 class SDDCSourceModule : public ModuleManager::Instance {
 public:
@@ -57,12 +56,6 @@ public:
         handler.tuneHandler = tune;
         handler.stream = &ddc.out;
 
-        xtalrates.define(128000000, "128MHz", 128000000);
-        xtalrates.define(96000000, "96MHz", 96000000);
-        xtalrates.define(64000000, "64MHz", 64000000);
-
-        xtalId = xtalrates.valueId(64000000);
-        xtal_freq = xtalrates[xtalId];
         // Refresh devices
         refresh();
 
@@ -99,16 +92,16 @@ public:
     };
 
 private:
-    std::string getBandwdithScaled(double bw) {
+    static std::string getBandwdithScaled(double bw) {
         char buf[1024];
         if (bw >= 1000000.0) {
-            snprintf(buf, 1024, "%.1lfMHz", bw / 1000000.0);
+            snprintf(buf, 1024, "%.2lfMHz", bw / 1000000.0);
         }
         else if (bw >= 1000.0) {
-            snprintf(buf, 1024, "%.1lfKHz", bw / 1000.0);
+            snprintf(buf, 1024, "%.2lfKHz", bw / 1000.0);
         }
         else {
-            snprintf(buf, 1024, "%.1lfHz", bw);
+            snprintf(buf, 1024, "%.2lfHz", bw);
         }
         return std::string(buf);
     }
@@ -172,12 +165,51 @@ private:
         sddc_get_usb_strings(dev, NULL, product, NULL);
 
         float gainFactor = RX888_GAINFACTOR;
+        uint32_t ref_clock_freq = 27000000;
         if (strstr(product, "RX888mk2")) {
             gainFactor = RX888mk2_GAINFACTOR;
-        }
-        else if (strstr(product, "RX888")) {
+            ref_clock_freq = 27000000;
+        } else if (strstr(product, "RX888")) {
             gainFactor = RX888_GAINFACTOR;
+            ref_clock_freq = 27000000;
+        } else if (strstr(product, "RX888pro")) {
+            gainFactor = RX888PRO_GAINFACTOR;
+            ref_clock_freq = 24576000;
         }
+
+        if (ext_clock) {
+            clock_freq = ext_clock_freq;
+        }
+        else {
+            clock_freq = ref_clock_freq;
+            ext_clock_freq = clock_freq;
+        }
+
+        if (clock_freq < 10000000) {
+            clock_freq = ref_clock_freq;
+        }
+
+        uint32_t xtal_freq0;
+        xtalrates.clear();
+        if (ref_clock_freq == 27000000) {
+            // MK1 & MK2
+            xtal_freq0 = 122880000;
+            xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
+            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
+
+        } else {
+            // PRO
+            xtal_freq0 = clock_freq * 80 / 16;
+            xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
+            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
+        }
+
+        if (xtalrates.valueExists(xtal_freq)) {
+            xtalId = xtalrates.valueId(xtal_freq);
+        } else {
+            xtalId = 0;
+        }
+        xtal_freq = xtalrates[xtalId];
 
         ddc.setGainFactor(gainFactor);
 
@@ -214,15 +246,20 @@ private:
             srId = samplerates.valueId(sampleRate);
         }
         else {
+            uint32_t sampleRate0;
             // define supported samplerates
             samplerates.clear();
-            sampleRate = 8e6;
+            if (xtal_freq / 8 > 8e8) {
+                sampleRate0 = sampleRate = xtal_freq / 16;
+            } else {
+                sampleRate0 = sampleRate = xtal_freq / 8;
+            }
             for (int i = 1; i <= 4; ++i) {
                 samplerates.define(sampleRate, getBandwdithScaled(sampleRate), sampleRate);
                 sampleRate /= 2;
             }
 
-            sampleRate = 8e6;
+            sampleRate = sampleRate0;
             srId = samplerates.valueId(sampleRate);
         }
 
@@ -415,6 +452,29 @@ private:
             core::setInputSampleRate(_this->sampleRate);
         }
 
+        if (SmGui::Checkbox(_L("External Clock"), &_this->ext_clock)) {
+            _this->select(_this->selectedSerial);
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["ext_clock"] = _this->ext_clock;
+                config.release(true);
+            }
+        }
+
+        SmGui::SameLine();
+        if (_this->ext_clock) {
+            if (SmGui::InputInt("##_sddc_ext_clk_freq", (int*)&_this->ext_clock_freq, 1000, 1000000)) {
+                _this->select(_this->selectedSerial);
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["ext_clock_freq"] = _this->ext_clock_freq;
+                    config.release(true);
+                }
+            }
+        } else {
+            SmGui::Text(getBandwdithScaled(_this->clock_freq).c_str());
+        }
+
         SmGui::LeftLabel(_L("Sample Rate"));
         SmGui::FillWidth();
         if (SmGui::Combo("##_sddc_xtal_sel", &_this->xtalId, _this->xtalrates.txt)) {
@@ -441,7 +501,7 @@ private:
             }
         }
 
-        SmGui::LeftLabel(_L("Antenna"));
+        SmGui::LeftLabel(_L("Mode"));
         if (SmGui::Combo("##_sddc_port", &_this->portId, _this->ports.txt)) {
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
@@ -552,6 +612,11 @@ private:
 
     OptionList<std::string, int> devices;
     int selectedDevId = 0;
+
+    // ref clock
+    bool ext_clock = false;
+    uint32_t ext_clock_freq;
+    uint32_t clock_freq;
 
     uint32_t xtal_freq;
     OptionList<int, uint32_t> xtalrates;
