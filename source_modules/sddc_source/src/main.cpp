@@ -32,10 +32,25 @@ ConfigManager config;
 
 #define TUNER_IF_FREQUENCY 4570000.0
 
+enum Model {
+    MODEL_RX888,
+    MODEL_RX888mk2,
+    MODEL_RX888PRO,
+    MODEL_COUNT
+};
+
 // GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode  
-#define RX888_GAINFACTOR   	(0.695e-8f)     // RX888
-#define RX888mk2_GAINFACTOR (1.080e-8f)      // RX888mk2
-#define RX888PRO_GAINFACTOR (0.695e-8f)    // RX888pro
+const float GainFactor[MODEL_COUNT] = {
+    0.695e-8f,
+    1.080e-8f,
+    0.695e-8f
+};
+
+const uint32_t RefClockFreq[MODEL_COUNT] = {
+    27000000,
+    27000000,
+    24576000
+};
 
 class SDDCSourceModule : public ModuleManager::Instance {
 public:
@@ -45,7 +60,7 @@ public:
         sampleRate = 128 * 1000 * 1000.0;
 
         // Initialize the DDC
-        ddc.init(&dataIn, RX888mk2_GAINFACTOR);
+        ddc.init(&dataIn, 0.1f);
 
         handler.ctx = this;
         handler.selectHandler = menuSelected;
@@ -88,7 +103,9 @@ public:
 
     enum Port {
         PORT_VHF,
-        PORT_HF
+        PORT_HF,
+        PORT_FM,
+        PORT_BYPASS
     };
 
 private:
@@ -143,15 +160,6 @@ private:
         int id = devices.keyId(serial);
         selectedDevId = devices[id];
 
-        // Define the ports
-        ports.clear();
-        ports.define("hf", "HF", PORT_HF);
-        ports.define("vhf", "VHF", PORT_VHF);
-
-        // Save serial number
-        selectedSerial = serial;
-        selectedDevId = id;
-
         // some API needs the device specific information
         sddc_dev_t* dev;
         int err = sddc_open(&dev, selectedDevId);
@@ -160,22 +168,40 @@ private:
             return;
         }
 
-        // determine the device type
-        char product[256];
-        sddc_get_usb_strings(dev, NULL, product, NULL);
+        if (id != original_index) {
+            original_index = id;
+            flog::info("SDDCSourceModule '{0}': Selected device index changed to {1}", name, id);
 
-        float gainFactor = RX888_GAINFACTOR;
-        uint32_t ref_clock_freq = 27000000;
-        if (strstr(product, "RX888mk2")) {
-            gainFactor = RX888mk2_GAINFACTOR;
-            ref_clock_freq = 27000000;
-        } else if (strstr(product, "RX888")) {
-            gainFactor = RX888_GAINFACTOR;
-            ref_clock_freq = 27000000;
-        } else if (strstr(product, "RX888pro")) {
-            gainFactor = RX888PRO_GAINFACTOR;
-            ref_clock_freq = 24576000;
+            // determine the device type
+            char product[256];
+            sddc_get_usb_strings(dev, NULL, product, NULL);
+
+            model = MODEL_RX888;
+            if (strstr(product, "RX888mk2")) {
+                model = MODEL_RX888mk2;
+            } else if (strstr(product, "RX888")) {
+                model = MODEL_RX888;
+            } else if (strstr(product, "RX888pro")) {
+                model = MODEL_RX888PRO;
+            }
+
+            // Define the ports
+            ports.clear();
+            ports.define("hf", "HF", PORT_HF);
+            ports.define("vhf", "VHF", PORT_VHF);
+            if (model == MODEL_RX888PRO) {
+                ports.define("fm", "FM", PORT_FM);
+                ports.define("bypass", "Bypass", PORT_FM);
+            }
+
+            // Save serial number
+            selectedSerial = serial;
+
+            float gainFactor = GainFactor[model];
+            ddc.setGainFactor(gainFactor);
         }
+
+        uint32_t ref_clock_freq = RefClockFreq[model];
 
         if (ext_clock) {
             clock_freq = ext_clock_freq;
@@ -211,14 +237,13 @@ private:
         }
         xtal_freq = xtalrates[xtalId];
 
-        ddc.setGainFactor(gainFactor);
-
         // Load default options
         port = PORT_HF;
         portId = ports.valueId(port);
         rfGain = 0;
         ifGain = 0;
         bias = false;
+        highz = false;
 
         // Load config
         config.acquire();
@@ -230,9 +255,9 @@ private:
             }
         }
 
-        sddc_set_direct_sampling(dev, (port == PORT_HF) ? 1 : 0);
+        sddc_set_direct_sampling(dev, (port != PORT_VHF) ? 1 : 0);
 
-        if (port == PORT_HF) {
+        if (port != PORT_VHF) {
 
             // define supported samplerates
             samplerates.clear();
@@ -291,6 +316,15 @@ private:
         if (config.conf["devices"][selectedSerial].contains("pga")) {
             pga = config.conf["devices"][selectedSerial]["pga"];
         }
+        if (config.conf["devices"][selectedSerial].contains("highz")) {
+            highz = config.conf["devices"][selectedSerial]["highz"];
+        }
+        if (config.conf["devices"][selectedSerial].contains("rando")) {
+            rando = config.conf["devices"][selectedSerial]["rando"];
+        }
+        if (config.conf["devices"][selectedSerial].contains("dither")) {
+            dither = config.conf["devices"][selectedSerial]["dither"];
+        }
         config.release();
 
         sddc_close(dev);
@@ -305,7 +339,7 @@ private:
         }
         else {
             gui::freqSelect.minFreq = 30e6;
-            gui::freqSelect.maxFreq = 2e9;
+            gui::freqSelect.maxFreq = 5e9;
         }
         gui::freqSelect.limitFreq = true;
     }
@@ -340,6 +374,10 @@ private:
         if (port == PORT_HF) {
             sddc_set_direct_sampling(openDev, 1);
             sddc_enable_bias_tee(openDev, bias ? 1 : 0);
+
+            if (model == MODEL_RX888PRO) {
+                sddc_enable_hf_highz(openDev, highz ? 1 : 0);
+            }
 
             // Configure and start the DDC for decimation only
             ddc.setInSamplerate(xtal_freq);
@@ -587,6 +625,19 @@ private:
             }
         }
 
+        if (_this->port != PORT_VHF && _this->model == MODEL_RX888PRO) {
+            if (SmGui::Checkbox(_L("High-Z"), &_this->highz)) {
+                if (_this->running) {
+                    sddc_enable_hf_highz(_this->openDev, _this->highz ? 1 : 0);
+                }
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["highz"] = _this->highz;
+                    config.release(true);
+                }
+            }
+        }
+
         ImGui::PopID();
     }
 
@@ -646,8 +697,12 @@ private:
     std::atomic<bool> run = false;
 
     bool bias;
+    bool highz;
     int rf_gain_min = 0, rf_gain_max = 0;
     int if_gain_min = 0, if_gain_max = 0;
+
+    int original_index = -1;
+    int model = MODEL_RX888;
 
     dsp::channel::FFTRxVFO ddc;
     dsp::stream<int16_t> dataIn;
