@@ -179,10 +179,10 @@ private:
             model = MODEL_RX888;
             if (strstr(product, "RX888mk2")) {
                 model = MODEL_RX888mk2;
-            } else if (strstr(product, "RX888")) {
-                model = MODEL_RX888;
             } else if (strstr(product, "RX888pro")) {
                 model = MODEL_RX888PRO;
+            } else if (strstr(product, "RX888")) {
+                model = MODEL_RX888;
             }
 
             // Define the ports
@@ -191,7 +191,7 @@ private:
             ports.define("vhf", "VHF", PORT_VHF);
             if (model == MODEL_RX888PRO) {
                 ports.define("fm", "FM", PORT_FM);
-                ports.define("bypass", "Bypass", PORT_FM);
+                ports.define("bypass", "Bypass", PORT_BYPASS);
             }
 
             // Save serial number
@@ -215,28 +215,6 @@ private:
             clock_freq = ref_clock_freq;
         }
 
-        uint32_t xtal_freq0;
-        xtalrates.clear();
-        if (ref_clock_freq == 27000000) {
-            // MK1 & MK2
-            xtal_freq0 = 122880000;
-            xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
-            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
-
-        } else {
-            // PRO
-            xtal_freq0 = clock_freq * 80 / 16;
-            xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
-            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
-        }
-
-        if (xtalrates.valueExists(xtal_freq)) {
-            xtalId = xtalrates.valueId(xtal_freq);
-        } else {
-            xtalId = 0;
-        }
-        xtal_freq = xtalrates[xtalId];
-
         // Load default options
         port = PORT_HF;
         portId = ports.valueId(port);
@@ -254,6 +232,30 @@ private:
                 port = ports[portId];
             }
         }
+
+        xtalrates.clear();
+        if (ref_clock_freq == 27000000) {
+            // MK1 & MK2
+            uint32_t xtal_freq0 = 122880000;
+            xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
+            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
+
+        } else {
+            // PRO
+            if (port != PORT_FM) {
+                int c = clock_freq * 80 / 16;
+                xtalrates.define(c, getBandwdithScaled(c), c);
+                xtalrates.define(c/2, getBandwdithScaled(c/2), c/2);
+            }
+            xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
+        }
+
+        if (xtalrates.valueExists(xtal_freq)) {
+            xtalId = xtalrates.valueId(xtal_freq);
+        } else {
+            xtalId = 0;
+        }
+        xtal_freq = xtalrates[xtalId];
 
         sddc_set_direct_sampling(dev, (port != PORT_VHF) ? 1 : 0);
 
@@ -371,12 +373,27 @@ private:
         }
 
         // set HF or VHF first
-        if (port == PORT_HF) {
+        if (port != PORT_VHF) {
             sddc_set_direct_sampling(openDev, 1);
             sddc_enable_bias_tee(openDev, bias ? 1 : 0);
 
             if (model == MODEL_RX888PRO) {
                 sddc_enable_hf_highz(openDev, highz ? 1 : 0);
+
+                switch (port) {
+                case PORT_HF:
+                    if (xtal_freq > 64e8)
+                        sddc_set_adc_filter(openDev, Freq64MHz);
+                    else
+                        sddc_set_adc_filter(openDev, Freq32MHz);
+                    break;
+                case PORT_FM:
+                    sddc_set_adc_filter(openDev, FMUndersample);
+                    break;
+                case PORT_BYPASS:
+                    sddc_set_adc_filter(openDev, Bypass);
+                    break;
+                }
             }
 
             // Configure and start the DDC for decimation only
@@ -587,29 +604,34 @@ private:
                 config.release(true);
             }
         }
-        SmGui::LeftLabel(_L("RF Gain"));
-        SmGui::FillWidth();
-        if (SmGui::SliderInt("##_sddc_rf_gain", &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
-            if (_this->running) {
-                sddc_set_rf_gain(_this->openDev, _this->rfGain);
-            }
-            if (!_this->selectedSerial.empty()) {
-                config.acquire();
-                config.conf["devices"][_this->selectedSerial]["rfGain"] = _this->rfGain;
-                config.release(true);
+
+        if (_this->rf_gain_max != _this->rf_gain_min) {
+            SmGui::LeftLabel(_L("RF Gain"));
+            SmGui::FillWidth();
+            if (SmGui::SliderInt("##_sddc_rf_gain", &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
+                if (_this->running) {
+                    sddc_set_rf_gain(_this->openDev, _this->rfGain);
+                }
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["rfGain"] = _this->rfGain;
+                    config.release(true);
+                }
             }
         }
 
-        SmGui::LeftLabel(_L("IF Gain"));
-        SmGui::FillWidth();
-        if (SmGui::SliderInt("##_sddc_if_gain", &_this->ifGain, _this->if_gain_min, _this->if_gain_max)) {
-            if (_this->running) {
-                sddc_set_if_gain(_this->openDev, _this->ifGain);
-            }
-            if (!_this->selectedSerial.empty()) {
-                config.acquire();
-                config.conf["devices"][_this->selectedSerial]["ifGain"] = _this->ifGain;
-                config.release(true);
+        if (_this->if_gain_max != _this->if_gain_min) {
+            SmGui::LeftLabel(_L("IF Gain"));
+            SmGui::FillWidth();
+            if (SmGui::SliderInt("##_sddc_if_gain", &_this->ifGain, _this->if_gain_min, _this->if_gain_max)) {
+                if (_this->running) {
+                    sddc_set_if_gain(_this->openDev, _this->ifGain);
+                }
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["ifGain"] = _this->ifGain;
+                    config.release(true);
+                }
             }
         }
 
