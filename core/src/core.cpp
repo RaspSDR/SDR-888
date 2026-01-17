@@ -207,6 +207,7 @@ int sdrpp_main(int argc, char* argv[]) {
     defConfig["language"] = "en";
     defConfig["modules"] = json::array();
 
+    defConfig["offsets"]["FM Undersample"] = 737280000.0;
     defConfig["offsets"]["SpyVerter"] = 120000000.0;
     defConfig["offsets"]["Ham-It-Up"] = 125000000.0;
     defConfig["offsets"]["MMDS S-band (1998MHz)"] = -1998000000.0;
