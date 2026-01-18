@@ -9,7 +9,15 @@
 #include <assert.h>
 #include "libsddc.h"
 
+#define FASTVFO_ENABLED
+
+#if !defined(FASTVFO_ENABLED)
 #include "fft_rx_vfo.h"
+typedef dsp::channel::FFTRxVFO RxVFOType;
+#else
+#include "pf_rx_vfo.h"
+typedef dsp::channel::PFRxVFO RxVFOType;
+#endif
 
 SDRPP_MOD_INFO{
     /* Name:            */ "sddc_source",
@@ -28,7 +36,7 @@ ConfigManager config;
 // where N is integer, so that the FFT bins align correctly
 // the values we can use 41, 80, 92, 101
 #define SDDC_ACCUMRATE_BUFFER_COUNT 101
-#define SDDC_BUFFER_SIZE (16 * 1024 / 2)
+#define SDDC_BUFFER_SIZE            (16 * 1024 / 2)
 
 #define TUNER_IF_FREQUENCY 4570000.0
 
@@ -39,7 +47,7 @@ enum Model {
     MODEL_COUNT
 };
 
-// GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode  
+// GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode
 const float GainFactor[MODEL_COUNT] = {
     0.695e-8f,
     1.080e-8f,
@@ -179,9 +187,11 @@ private:
             model = MODEL_RX888;
             if (strstr(product, "RX888mk2")) {
                 model = MODEL_RX888mk2;
-            } else if (strstr(product, "RX888pro")) {
+            }
+            else if (strstr(product, "RX888pro")) {
                 model = MODEL_RX888PRO;
-            } else if (strstr(product, "RX888")) {
+            }
+            else if (strstr(product, "RX888")) {
                 model = MODEL_RX888;
             }
 
@@ -218,8 +228,8 @@ private:
         // Load default options
         port = PORT_HF;
         portId = ports.valueId(port);
-        rfGain = 0;
-        ifGain = 0;
+        rfGainIdx = 0;
+        ifGainIdx = 0;
         bias = false;
         highz = false;
 
@@ -238,38 +248,42 @@ private:
             // MK1 & MK2
             uint32_t xtal_freq0 = 122880000;
             xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
-            xtalrates.define(xtal_freq0/2, getBandwdithScaled(xtal_freq0/2), xtal_freq0/2);
-
-        } else {
+            xtalrates.define(xtal_freq0 / 2, getBandwdithScaled(xtal_freq0 / 2), xtal_freq0 / 2);
+        }
+        else {
             // PRO
-            if (port != PORT_FM) {
-                int c = clock_freq * 80 / 16;
-                xtalrates.define(c, getBandwdithScaled(c), c);
-                xtalrates.define(c/2, getBandwdithScaled(c/2), c/2);
-            }
+            int c = clock_freq * 80 / 16;
+            xtalrates.define(c, getBandwdithScaled(c), c);
+            xtalrates.define(c / 2, getBandwdithScaled(c / 2), c / 2);
             xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
         }
 
+        if (config.conf["devices"][selectedSerial].contains("xtal_freq")) {
+            xtal_freq = config.conf["devices"][selectedSerial]["xtal_freq"];
+        }
         if (xtalrates.valueExists(xtal_freq)) {
             xtalId = xtalrates.valueId(xtal_freq);
-        } else {
-            xtalId = 0;
         }
-        xtal_freq = xtalrates[xtalId];
+        else {
+            xtalId = 1;
+            xtal_freq = xtalrates[xtalId];
+        }
 
         sddc_set_direct_sampling(dev, (port != PORT_VHF) ? 1 : 0);
 
         if (port != PORT_VHF) {
-
+            uint32_t sampleRate0;
             // define supported samplerates
             samplerates.clear();
-            sampleRate = xtal_freq / 2;
+            sampleRate0 = xtal_freq / 2;
             for (int i = 1; i <= 6; ++i) {
-                samplerates.define(sampleRate, getBandwdithScaled(sampleRate), sampleRate);
-                sampleRate /= 2;
+                samplerates.define(sampleRate0, getBandwdithScaled(sampleRate0), sampleRate0);
+                sampleRate0 /= 2;
             }
 
-            sampleRate = xtal_freq / 2;
+            if (!samplerates.valueExists(sampleRate)) {
+                sampleRate = samplerates.key(1);
+            }
             srId = samplerates.valueId(sampleRate);
         }
         else {
@@ -277,16 +291,19 @@ private:
             // define supported samplerates
             samplerates.clear();
             if (xtal_freq / 8 > 8e8) {
-                sampleRate0 = sampleRate = xtal_freq / 16;
-            } else {
-                sampleRate0 = sampleRate = xtal_freq / 8;
+                sampleRate0 = xtal_freq / 16;
+            }
+            else {
+                sampleRate0 = xtal_freq / 8;
             }
             for (int i = 1; i <= 4; ++i) {
-                samplerates.define(sampleRate, getBandwdithScaled(sampleRate), sampleRate);
-                sampleRate /= 2;
+                samplerates.define(sampleRate0, getBandwdithScaled(sampleRate0), sampleRate0);
+                sampleRate0 /= 2;
             }
 
-            sampleRate = sampleRate0;
+            if (!samplerates.valueExists(sampleRate)) {
+                sampleRate = samplerates.key(1);
+            }
             srId = samplerates.valueId(sampleRate);
         }
 
@@ -299,18 +316,12 @@ private:
         }
 
         if (config.conf["devices"][selectedSerial].contains("rfGain")) {
-            float min, max;
-            sddc_get_rf_gain_range(dev, &min, &max);
-            rf_gain_max = max;
-            rf_gain_min = min;
-            rfGain = std::clamp<int>(config.conf["devices"][selectedSerial]["rfGain"], rf_gain_min, rf_gain_max);
+            rf_steps = sddc_get_rf_gain_steps(dev, &rf_gain_steps);
+            rfGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["rfGain"], 0, rf_steps - 1);
         }
         if (config.conf["devices"][selectedSerial].contains("ifGain")) {
-            float min, max;
-            sddc_get_if_gain_range(dev, &min, &max);
-            if_gain_max = max;
-            if_gain_min = min;
-            ifGain = std::clamp<int>(config.conf["devices"][selectedSerial]["ifGain"], if_gain_min, if_gain_max);
+            if_steps = sddc_get_if_gain_steps(dev, &if_gain_steps);
+            ifGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["ifGain"], 0, if_steps - 1);
         }
         if (config.conf["devices"][selectedSerial].contains("bias")) {
             bias = config.conf["devices"][selectedSerial]["bias"];
@@ -393,13 +404,21 @@ private:
                 case PORT_BYPASS:
                     sddc_set_adc_filter(openDev, Bypass);
                     break;
+                case PORT_VHF:
+                    break;
                 }
             }
 
             // Configure and start the DDC for decimation only
             ddc.setInSamplerate(xtal_freq);
             ddc.setOutSamplerate(sampleRate, sampleRate);
-            ddc.setOffset(freq);
+
+            if (port == PORT_HF) {
+                ddc.setOffset(-TUNER_IF_FREQUENCY);
+            }
+            else {
+                ddc.setOffset(freq);
+            }
             ddc.start();
         }
         else {
@@ -417,24 +436,14 @@ private:
 
         sddc_enable_adc_pga(openDev, pga ? 1 : 0);
         sddc_set_xtal_freq(openDev, xtal_freq);
-        
-        float min, max;
-        sddc_get_rf_gain_range(openDev, &min, &max);
-        rf_gain_max = max;
-        rf_gain_min = min;
-        rfGain = std::clamp<int>(rfGain, rf_gain_min, rf_gain_max);
-        sddc_get_if_gain_range(openDev, &min, &max);
-        if_gain_max = max;
-        if_gain_min = min;
-        ifGain = std::clamp<int>(ifGain, if_gain_min, if_gain_max);
 
-        sddc_set_if_gain(openDev, ifGain);
-        float val;
-        sddc_get_if_gain(openDev, &val);
-        ifGain = (int)val;
-        sddc_set_rf_gain(openDev, rfGain);
-        sddc_get_rf_gain(openDev, &val);
-        rfGain = (int)val;
+        rf_steps = sddc_get_rf_gain_steps(openDev, &rf_gain_steps);
+        rfGainIdx = std::clamp<int>(rfGainIdx, 0, rf_steps - 1);
+        if_steps = sddc_get_if_gain_steps(openDev, &if_gain_steps);
+        ifGainIdx = std::clamp<int>(ifGainIdx, 0, if_steps - 1);
+
+        sddc_set_rf_gain(openDev, rf_gain_steps[rfGainIdx]);
+        sddc_set_if_gain(openDev, if_gain_steps[ifGainIdx]);
 
         buffercount = 0;
 
@@ -470,14 +479,21 @@ private:
     static void tune(double freq, void* ctx) {
         SDDCSourceModule* _this = (SDDCSourceModule*)ctx;
         if (_this->running) {
-            if (_this->port == PORT_VHF) {
+            switch (_this->port) {
+            case PORT_VHF:
                 sddc_set_center_freq64(_this->openDev, (uint64_t)freq);
-            }
-            else {
-                if (freq < _this->xtal_freq / 2)
-                {
+                break;
+            case PORT_FM:
+                freq -= _this->xtal_freq;
+                if (freq > 0 && freq < _this->xtal_freq / 2) {
                     _this->ddc.setOffset(freq);
                 }
+                break;
+            default:
+                if (freq < _this->xtal_freq / 2) {
+                    _this->ddc.setOffset(freq);
+                }
+                break;
             }
         }
         _this->freq = freq;
@@ -527,7 +543,8 @@ private:
                     config.release(true);
                 }
             }
-        } else {
+        }
+        else {
             SmGui::Text(getBandwdithScaled(_this->clock_freq).c_str());
         }
 
@@ -535,13 +552,13 @@ private:
         SmGui::FillWidth();
         if (SmGui::Combo("##_sddc_xtal_sel", &_this->xtalId, _this->xtalrates.txt)) {
             _this->xtal_freq = _this->xtalrates.value(_this->xtalId);
-            _this->select(_this->devices.key(_this->selectedDevId));
-            core::setInputSampleRate(_this->sampleRate);
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
                 config.conf["devices"][_this->selectedSerial]["xtal_freq"] = _this->xtalrates.key(_this->xtalId);
                 config.release(true);
             }
+            _this->select(_this->devices.key(_this->selectedDevId));
+            core::setInputSampleRate(_this->sampleRate);
         }
 
         SmGui::LeftLabel(_L("Bandwidth"));
@@ -571,7 +588,7 @@ private:
         SmGui::LeftLabel(_L("ADC"));
         if (SmGui::Checkbox(_L("RANDO"), &_this->rando)) {
             if (_this->running) {
-                sddc_enable_adc_rando(_this->openDev, _this->rando ? 1 : 0);                
+                sddc_enable_adc_rando(_this->openDev, _this->rando ? 1 : 0);
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
@@ -584,7 +601,7 @@ private:
         SmGui::SameLine();
         if (SmGui::Checkbox(_L("PGA"), &_this->pga)) {
             if (_this->running) {
-                sddc_enable_adc_pga(_this->openDev, _this->pga ? 1 : 0);                
+                sddc_enable_adc_pga(_this->openDev, _this->pga ? 1 : 0);
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
@@ -596,7 +613,7 @@ private:
         SmGui::SameLine();
         if (SmGui::Checkbox(_L("Dither"), &_this->dither)) {
             if (_this->running) {
-                sddc_enable_adc_dither(_this->openDev, _this->dither ? 1 : 0);                
+                sddc_enable_adc_dither(_this->openDev, _this->dither ? 1 : 0);
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
@@ -605,31 +622,39 @@ private:
             }
         }
 
-        if (_this->rf_gain_max != _this->rf_gain_min) {
+        if (_this->rf_steps > 1) {
             SmGui::LeftLabel(_L("RF Gain"));
             SmGui::FillWidth();
-            if (SmGui::SliderInt("##_sddc_rf_gain", &_this->rfGain, _this->rf_gain_min, _this->rf_gain_max)) {
+            char label[32];
+            snprintf(label, sizeof(label), "%.1f dB", _this->rf_gain_steps[_this->rfGainIdx]);
+
+            if (ImGui::SliderInt("##_sddc_rf_gain",
+                                 &_this->rfGainIdx, 0, _this->rf_steps - 1, label)) {
                 if (_this->running) {
-                    sddc_set_rf_gain(_this->openDev, _this->rfGain);
+                    sddc_set_rf_gain(_this->openDev, _this->rf_gain_steps[_this->rfGainIdx]);
                 }
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["rfGain"] = _this->rfGain;
+                    config.conf["devices"][_this->selectedSerial]["rfGain"] = _this->rfGainIdx;
                     config.release(true);
                 }
             }
         }
 
-        if (_this->if_gain_max != _this->if_gain_min) {
+        if (_this->if_steps > 1) {
             SmGui::LeftLabel(_L("IF Gain"));
             SmGui::FillWidth();
-            if (SmGui::SliderInt("##_sddc_if_gain", &_this->ifGain, _this->if_gain_min, _this->if_gain_max)) {
+            char label[32];
+            snprintf(label, sizeof(label), "%.1f dB", _this->if_gain_steps[_this->ifGainIdx]);
+
+            if (ImGui::SliderInt("##_sddc_if_gain",
+                                 &_this->ifGainIdx, 0, _this->if_steps - 1, label)) {
                 if (_this->running) {
-                    sddc_set_if_gain(_this->openDev, _this->ifGain);
+                    sddc_set_if_gain(_this->openDev, _this->if_gain_steps[_this->ifGainIdx]);
                 }
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["ifGain"] = _this->ifGain;
+                    config.conf["devices"][_this->selectedSerial]["ifGain"] = _this->ifGainIdx;
                     config.release(true);
                 }
             }
@@ -669,7 +694,7 @@ private:
         assert(SDDC_BUFFER_SIZE == count);
 
         memcpy(_this->dataIn.writeBuf + _this->buffercount * SDDC_BUFFER_SIZE, buffer, count * sizeof(int16_t));
-        
+
         _this->buffercount++;
         // If buffer is full, swap and reset fill
         if (_this->buffercount == SDDC_ACCUMRATE_BUFFER_COUNT) {
@@ -704,9 +729,15 @@ private:
     int portId = 0;
     Port port;
 
-    int rfGain = 0;
-    int ifGain = 0;
     std::string selectedSerial;
+
+    int rfGainIdx;
+    int rf_steps;
+    const float* rf_gain_steps;
+
+    int ifGainIdx;
+    int if_steps;
+    const float* if_gain_steps;
 
     bool pga;
     bool dither;
@@ -720,13 +751,11 @@ private:
 
     bool bias;
     bool highz;
-    int rf_gain_min = 0, rf_gain_max = 0;
-    int if_gain_min = 0, if_gain_max = 0;
 
     int original_index = -1;
     int model = MODEL_RX888;
 
-    dsp::channel::FFTRxVFO ddc;
+    RxVFOType ddc;
     dsp::stream<int16_t> dataIn;
 };
 
