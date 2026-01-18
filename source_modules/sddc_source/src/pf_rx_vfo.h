@@ -10,7 +10,6 @@ namespace dsp::channel {
 
     public:
         PFRxVFO() {
-            dsp::buffer::clear<float>(nullBuffer, STREAM_BUFFER_SIZE);
         }
 
         PFRxVFO(stream<int16_t>* in, double inSamplerate, double outSamplerate, double bandwidth, double offset) { init(in, inSamplerate, outSamplerate, bandwidth, offset); }
@@ -100,6 +99,69 @@ namespace dsp::channel {
             gainFactor = gain;
         }
 
+        void setAntiAlias(bool enable) {
+            anti_alias = enable;
+        }
+
+        // Fast FIR for half FIR filter
+        template <bool flip>
+            static inline float fir_core(const int16_t* p) {
+                float ret = ((p[-5] - p[5]) * -H0 + (p[-3] - p[3]) * -H2 + p[0] * H5);
+            if (flip)
+                return -ret;
+            else
+                return ret;
+        }
+
+        template <bool flip>
+            static inline float fir_core_q(const int16_t* p) {
+                float ret = ((p[-4] - p[6]) * -H0 + (p[-2] - p[4]) * -H2 + p[1] * H5);
+
+            if (flip)
+                return -ret;
+            else
+                return ret;
+        }
+
+        // 
+        void convert_real_to_complex_filtered(const int16_t* real_in,
+                                           complex_t* iq_out,
+                                           int n_real) {
+            const float scale = 1.0f / 32768.0f;
+            const int n_iq = n_real / 2;
+            assert(n_real % 4 == 0);
+
+            int16_t header_buf[20];
+            memcpy(header_buf, prev_samples, 10 * sizeof(int16_t));
+            memcpy(header_buf + 10, real_in, 10 * sizeof(int16_t));
+
+            // proess first 5 IQ samples from header_buf
+            for (int i = 0; i < 5; i++) {
+                const int16_t* p = &header_buf[i * 2 + 5];
+                if (i & 1) {
+                    iq_out[i].re = fir_core<true>(p);
+                    iq_out[i].im = fir_core_q<false>(p);
+                }
+                else {
+                    iq_out[i].re = fir_core<false>(p);
+                    iq_out[i].im = fir_core_q<true>(p);
+                }
+            }
+
+            for (int i = 5; i < n_iq - 3; i += 2) {
+                const int16_t* p0 = &real_in[i * 2];
+                
+                iq_out[i].re = fir_core<true>(p0);
+                iq_out[i].im = fir_core_q<false>(p0);
+
+                const int16_t* p1 = p0 + 2;
+                iq_out[i + 1].re = fir_core<false>(p1);
+                iq_out[i + 1].im = fir_core_q<true>(p1);
+            }
+
+            memcpy(prev_samples, real_in + (n_real - 10), 10 * sizeof(int16_t));
+        }
+
         /**
          * Fused Real-to-IQ conversion.
          * Input: 64MHz real (int16_t)
@@ -132,9 +194,12 @@ namespace dsp::channel {
 
         inline int process(int count, const int16_t* _in, complex_t* out) {
 
-            const complex_t* in = result;
+            const complex_t* in = out;
 
-            convert_real_to_complex_fused(_in, result, count);
+            if (anti_alias)
+                convert_real_to_complex_filtered(_in, out, count);
+            else
+                convert_real_to_complex_fused(_in, out, count);
             count /= 2; // Each 2 real samples become 1 complex sample
 
             xlator.process(count, in, out);
@@ -185,9 +250,13 @@ namespace dsp::channel {
         stream<complex_t> iq_samples;
 
         float gainFactor;
-        float fbuffer[STREAM_BUFFER_SIZE];
-        float nullBuffer[STREAM_BUFFER_SIZE];
         complex_t result[STREAM_BUFFER_SIZE];
+
+        // 11-taps coefficients for a simple half FIR low-pass filter with cutoff at 0.5
+        static constexpr int TAPS_NUM = 11;
+        bool anti_alias = true;
+        int16_t prev_samples[TAPS_NUM - 1] = {0};
+        static constexpr float H0 = 0.053720f / 32768.0f, H2 = -0.091576f / 32768.0f, H4 = 0.313132f / 32768.0f, H5 = 0.5f / 32768.0f;
 
         std::mutex filterMtx;
     };

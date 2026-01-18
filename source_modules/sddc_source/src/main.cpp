@@ -672,8 +672,18 @@ private:
             }
         }
 
+        if (SmGui::Checkbox(_L("Anti-Alias (Digit LPF)"), &_this->anti_alias)) {
+                _this->ddc.setAntiAlias(_this->anti_alias);
+
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["anti_alias"] = _this->anti_alias;
+                    config.release(true);
+                }
+        }
+
         if (_this->port != PORT_VHF && _this->model == MODEL_RX888PRO) {
-            if (SmGui::Checkbox(_L("High-Z"), &_this->highz)) {
+            if (SmGui::Checkbox(_L("High-Z to 50 ohm Converter"), &_this->highz)) {
                 if (_this->running) {
                     sddc_enable_hf_highz(_this->openDev, _this->highz ? 1 : 0);
                 }
@@ -751,6 +761,7 @@ private:
 
     bool bias;
     bool highz;
+    bool anti_alias = true;
 
     int original_index = -1;
     int model = MODEL_RX888;
