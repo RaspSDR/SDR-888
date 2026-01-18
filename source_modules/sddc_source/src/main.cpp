@@ -9,7 +9,7 @@
 #include <assert.h>
 #include "libsddc.h"
 
-#define FASTVFO_ENABLED
+//#define FASTVFO_ENABLED
 
 #if !defined(FASTVFO_ENABLED)
 #include "fft_rx_vfo.h"
@@ -670,16 +670,6 @@ private:
                 config.conf["devices"][_this->selectedSerial]["bias"] = _this->bias;
                 config.release(true);
             }
-        }
-
-        if (SmGui::Checkbox(_L("Anti-Alias (Digit LPF)"), &_this->anti_alias)) {
-                _this->ddc.setAntiAlias(_this->anti_alias);
-
-                if (!_this->selectedSerial.empty()) {
-                    config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["anti_alias"] = _this->anti_alias;
-                    config.release(true);
-                }
         }
 
         if (_this->port != PORT_VHF && _this->model == MODEL_RX888PRO) {

@@ -10,6 +10,9 @@
 
 #define NDECIDX 7 // Support decimation ratios: 2,4,8,16,32,64,128
 
+constexpr int fftSize = 8192;
+constexpr int halfFft = fftSize / 2;
+
 namespace dsp::channel {
     /**
      * FFT-based RX VFO using overlap-save method for high-performance processing
@@ -36,10 +39,9 @@ namespace dsp::channel {
             cleanup();
         }
 
-        void init(stream<int16_t>* in, float gain, int fftSize = 8192) {
+        void init(stream<int16_t>* in, float gain) {
             _inSamplerate = 64000000;
             _outSamplerate = 0;
-            halfFft = fftSize / 2;
 
             _mtunebin = fftSize / 2 / 4;
             GainScale = gain;
@@ -53,7 +55,7 @@ namespace dsp::channel {
             inFreqTmp = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft));     // 1024
 
             plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, ADCinFreq, FFTW_PATIENT);
-            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft, inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_PATIENT);
+            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft, inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
 
             base_type::init(in);
 
@@ -143,6 +145,7 @@ namespace dsp::channel {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             base_type::tempStop();
+            stateFineTune = shift_limited_unroll_C_sse_init(fc, 0.0F);
             base_type::tempStart();
         }
 
@@ -236,10 +239,8 @@ namespace dsp::channel {
                 // 'full' transformation size: 2 * halfFft
                 fftwf_execute_dft_r2c(plan_t2f_r2c, real_input, ADCinFreq);
                 real_input += 3 * halfFft / 2;
-                // result now in ADCinFreq[]
-                ADCinFreq[0][0] = 0;
-                ADCinFreq[0][1] = 0;
 
+                // result now in ADCinFreq[]
                 // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
                 {
                     // circular shift tune fs/2 first half array into inFreqTmp[]
@@ -333,7 +334,7 @@ namespace dsp::channel {
 
             float* pht = new float[halfFft / 4 + 1];
             const float Astop = 120.0f;
-            const float relPass = 0.85f; // 85% of Nyquist should be usable
+            const float relPass = 0.82f; // 82% of Nyquist should be usable
             const float relStop = 1.1f;  // 'some' alias back into transition band is OK
 
             {
@@ -360,7 +361,7 @@ namespace dsp::channel {
             fftwf_free(pfilterht);
 
             fftwf_destroy_plan(plan_f2t_c2c);
-            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft / (1 << index), inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_PATIENT);
+            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft / (1 << index), inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
         }
 
         void cleanup() {
@@ -391,8 +392,6 @@ namespace dsp::channel {
         float* ADCinTime;         // point to each threads input buffers [nftt]
         fftwf_complex* ADCinFreq; // buffers in frequency
         fftwf_complex* inFreqTmp; // tmp decimation output buffers (after tune shift)
-
-        int halfFft;
 
         // Hardware scale factor
         float GainScale;
