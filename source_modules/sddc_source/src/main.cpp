@@ -252,11 +252,9 @@ private:
         }
         else {
             // PRO
-            if (port != PORT_FM) {
-                int c = clock_freq * 80 / 16;
-                xtalrates.define(c, getBandwdithScaled(c), c);
-                xtalrates.define(c / 2, getBandwdithScaled(c / 2), c / 2);
-            }
+            int c = clock_freq * 80 / 16;
+            xtalrates.define(c, getBandwdithScaled(c), c);
+            xtalrates.define(c / 2, getBandwdithScaled(c / 2), c / 2);
             xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
         }
 

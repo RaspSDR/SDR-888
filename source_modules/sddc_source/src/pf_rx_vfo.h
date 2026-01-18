@@ -1,4 +1,6 @@
 #pragma once
+#include <assert.h>
+
 #include "dsp/channel/frequency_xlator.h"
 #include "dsp/multirate/rational_resampler.h"
 
@@ -18,7 +20,6 @@ namespace dsp::channel {
             base_type::stop();
             taps::free(ftaps);
         }
-
 
         void init(stream<int16_t>* in, float gain) {
             gainFactor = gain;
@@ -110,6 +111,7 @@ namespace dsp::channel {
                                            int n_real) {
             const float scale = 1.0f / 32768.0f;
 
+            assert(n_real % 4 == 0);
             // Process 4 real samples to produce 2 complex samples per iteration
             // assume n_real is multiple of 4
             for (int i = 0; i < n_real / 4; ++i) {
@@ -120,10 +122,10 @@ namespace dsp::channel {
 
                 // Complex Sample 0
                 iq_out[out_idx].im = (float)real_in[in_idx] * scale;      // I =  x[0]
-                iq_out[out_idx].re = -(float)real_in[in_idx + 1] * scale; // Q = -x[1]
+                iq_out[out_idx].re = (float)(-real_in[in_idx + 1]) * scale; // Q = -x[1]
 
                 // Complex Sample 1
-                iq_out[out_idx + 1].im = -(float)real_in[in_idx + 2] * scale; // I = -x[2]
+                iq_out[out_idx + 1].im = (float)(-real_in[in_idx + 2]) * scale; // I = -x[2]
                 iq_out[out_idx + 1].re = (float)real_in[in_idx + 3] * scale;  // Q =  x[3]
             }
         }
@@ -138,9 +140,7 @@ namespace dsp::channel {
             xlator.process(count, in, out);
             in = out;
 
-            if (_inSamplerate / 2 != _outSamplerate) {
-                count = resamp.process(count, in, out);
-            }
+            count = resamp.process(count, in, out);
 
             if (filterNeeded) {
                 std::lock_guard<std::mutex> lck(filterMtx);
