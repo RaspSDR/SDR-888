@@ -105,38 +105,36 @@ namespace dsp::channel {
 
         // Fast FIR for half FIR filter
         template <bool flip>
-            static inline float fir_core(const int16_t* p) {
-                float ret = ((p[-5] - p[5]) * -H0 + (p[-3] - p[3]) * -H2 + p[0] * H5);
-            if (flip)
-                return -ret;
-            else
-                return ret;
+        static inline float fir_core(const int16_t* p) {
+            float acc = (p[-7] + p[7]) * H0 +
+                        (p[-5] + p[5]) * H2 +
+                        (p[-3] + p[3]) * H4 +
+                        (p[0]) * H7;
+            return flip ? -acc : acc;
         }
 
         template <bool flip>
-            static inline float fir_core_q(const int16_t* p) {
-                float ret = ((p[-4] - p[6]) * -H0 + (p[-2] - p[4]) * -H2 + p[1] * H5);
-
-            if (flip)
-                return -ret;
-            else
-                return ret;
+        static inline float fir_core_q(const int16_t* p) {
+            float acc = (p[-6] + p[8]) * H0 +
+                        (p[-4] + p[6]) * H2 +
+                        (p[-2] + p[4]) * H4 +
+                        (p[1]) * H7;
+            return flip ? -acc : acc;
         }
 
-        // 
+        //
         void convert_real_to_complex_filtered(const int16_t* real_in,
-                                           complex_t* iq_out,
-                                           int n_real) {
-            const float scale = 1.0f / 32768.0f;
+                                              complex_t* iq_out,
+                                              int n_real) {
             const int n_iq = n_real / 2;
             assert(n_real % 4 == 0);
 
-            int16_t header_buf[20];
-            memcpy(header_buf, prev_samples, 10 * sizeof(int16_t));
-            memcpy(header_buf + 10, real_in, 10 * sizeof(int16_t));
+            int16_t header_buf[TAPS_NUM * 2];
+            memcpy(header_buf, prev_samples, (TAPS_NUM - 1) * sizeof(int16_t));
+            memcpy(header_buf + (TAPS_NUM - 1), real_in, (TAPS_NUM - 1) * sizeof(int16_t));
 
             // proess first 5 IQ samples from header_buf
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < (TAPS_NUM - 1) / 2; i++) {
                 const int16_t* p = &header_buf[i * 2 + 5];
                 if (i & 1) {
                     iq_out[i].re = fir_core<true>(p);
@@ -148,9 +146,9 @@ namespace dsp::channel {
                 }
             }
 
-            for (int i = 5; i < n_iq - 3; i += 2) {
+            for (int i = (TAPS_NUM - 1) / 2; i < n_iq - 3; i += 2) {
                 const int16_t* p0 = &real_in[i * 2];
-                
+
                 iq_out[i].re = fir_core<true>(p0);
                 iq_out[i].im = fir_core_q<false>(p0);
 
@@ -159,7 +157,8 @@ namespace dsp::channel {
                 iq_out[i + 1].im = fir_core_q<true>(p1);
             }
 
-            memcpy(prev_samples, real_in + (n_real - 10), 10 * sizeof(int16_t));
+            memcpy(prev_samples, real_in + (n_real - (TAPS_NUM - 1) * 2),
+                   (TAPS_NUM - 1) * sizeof(int16_t));
         }
 
         /**
@@ -183,12 +182,12 @@ namespace dsp::channel {
                 // Pattern: [I=x0, Q=-x1], [I=-x2, Q=x3]
 
                 // Complex Sample 0
-                iq_out[out_idx].im = (float)real_in[in_idx] * scale;      // I =  x[0]
+                iq_out[out_idx].im = (float)real_in[in_idx] * scale;        // I =  x[0]
                 iq_out[out_idx].re = (float)(-real_in[in_idx + 1]) * scale; // Q = -x[1]
 
                 // Complex Sample 1
                 iq_out[out_idx + 1].im = (float)(-real_in[in_idx + 2]) * scale; // I = -x[2]
-                iq_out[out_idx + 1].re = (float)real_in[in_idx + 3] * scale;  // Q =  x[3]
+                iq_out[out_idx + 1].re = (float)real_in[in_idx + 3] * scale;    // Q =  x[3]
             }
         }
 
@@ -253,10 +252,16 @@ namespace dsp::channel {
         complex_t result[STREAM_BUFFER_SIZE];
 
         // 11-taps coefficients for a simple half FIR low-pass filter with cutoff at 0.5
-        static constexpr int TAPS_NUM = 11;
+        static constexpr int TAPS_NUM = 15;
         bool anti_alias = true;
-        int16_t prev_samples[TAPS_NUM - 1] = {0};
-        static constexpr float H0 = 0.053720f / 32768.0f, H2 = -0.091576f / 32768.0f, H4 = 0.313132f / 32768.0f, H5 = 0.5f / 32768.0f;
+        int16_t prev_samples[TAPS_NUM - 1] = { 0 };
+        // 15-Taps 半带滤波器系数 (阻带约 -60dB)
+        // 归一化直流增益为 1.0，并预乘 1/32768
+        static constexpr float S = 1.0f / 32768.0f;
+        static constexpr float H0 = -0.013233f * S;
+        static constexpr float H2 = 0.044509f * S;
+        static constexpr float H4 = -0.116715f * S;
+        static constexpr float H7 = 0.500000f * S; // 中心点
 
         std::mutex filterMtx;
     };
