@@ -180,7 +180,6 @@ namespace dsp::channel {
             auto source2 = &ADCinFreq[mtunebin - mfft / 2];
             auto dest = &inFreqTmp[mfft / 2];
             auto filter2 = &filter[halfFft - mfft / 2];
-            complex_t* origin_output = out;
 
             // calcuate how many times we should run fft/ifft pair
             // we can estimate how many output samples we can get
@@ -227,18 +226,16 @@ namespace dsp::channel {
                 {
                     copy<false>((fftwf_complex*)out, &inFreqTmp[mfft / 4], mfft / 2);
                 }
-                out += mfft / 2;
             }
 
-            int output_step = 3 * mfft / 4;
+            const int output_step = 3 * mfft / 4;
             for (int k = 1; k < fftPerBuf; k++) {
                 // core of fast convolution including filter and decimation
                 //   main part is 'overlap-scrap' (IMHO better name for 'overlap-save'), see
                 //   https://en.wikipedia.org/wiki/Overlap%E2%80%93save_method
                 // FFT first stage: time to frequency, real to complex
                 // 'full' transformation size: 2 * halfFft
-                fftwf_execute_dft_r2c(plan_t2f_r2c, real_input, ADCinFreq);
-                real_input += 3 * halfFft / 2;
+                fftwf_execute_dft_r2c(plan_t2f_r2c, real_input + (3 * halfFft / 2) * k, ADCinFreq);
 
                 // result now in ADCinFreq[]
                 // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
@@ -255,24 +252,25 @@ namespace dsp::channel {
                 }
                 // result now in inFreqTmp[]
 
-                fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)out); //  c2c decimation
+                fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)ADCinFreq); //  c2c decimation
 
+                auto output = out + mfft / 2 + output_step * (k - 1);
+                memcpy(output, ADCinFreq, sizeof(fftwf_complex) * output_step);
                 // postprocessing
                 if (lsb) // lower sideband
                 {
                     // mirror just by negating the imaginary Q of complex I/Q
                     int i;
                     for (i = 0; i < output_step; i += 4) {
-                        out[i].im = -out[i].im;
-                        out[i + 1].im = -out[i + 1].im;
-                        out[i + 2].im = -out[i + 2].im;
-                        out[i + 3].im = -out[i + 3].im;
+                        output[i].im = -output[i].im;
+                        output[i + 1].im = -output[i + 1].im;
+                        output[i + 2].im = -output[i + 2].im;
+                        output[i + 3].im = -output[i + 3].im;
                     }
                     for (; i < output_step; i++) {
-                        out[i].im = -out[i].im;
+                        output[i].im = -output[i].im;
                     }
                 }
-                out += output_step;
                 // result now in this->obuffers[]
             }
 
@@ -281,9 +279,9 @@ namespace dsp::channel {
                 memmove(ADCinTime, &ADCinTime[count], sizeof(*ADCinTime) * halfFft);
             }
 
-            int len = out - origin_output;
+            int len = mfft / 2 + (fftPerBuf - 1) * output_step;
             if (this->fc != 0.0f) {
-                shift_limited_unroll_C_sse_inp_c((complexf*)origin_output, len, &stateFineTune);
+                shift_limited_unroll_C_sse_inp_c((complexf*)out, len, &stateFineTune);
             }
 
             return len;
