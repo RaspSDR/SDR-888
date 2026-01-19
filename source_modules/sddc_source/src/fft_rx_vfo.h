@@ -5,11 +5,15 @@
 #include <algorithm>
 #include <volk/volk.h>
 
+#include <thread>
+#include <vector>
+
 #include "pffft/pf_mixer.h"
 #include "kaiser.h"
 
 #define NDECIDX 7 // Support decimation ratios: 2,4,8,16,32,64,128
 
+#define MAX_THREADS 5
 constexpr int fftSize = 8192;
 constexpr int halfFft = fftSize / 2;
 
@@ -51,15 +55,18 @@ namespace dsp::channel {
             // make sure initial overlap region is zeroed to avoid reading uninitialized samples
             memset(ADCinTime, 0, sizeof(float) * halfFft);
 
-            ADCinFreq = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft + 1)); // 1024+1
-            inFreqTmp = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft));     // 1024
-
-            plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, ADCinFreq, FFTW_PATIENT);
-            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft, inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
-
             base_type::init(in);
 
-            setOutSamplerate(32000000, 16000000);
+            setOutSamplerate(128000000, 64000000);
+
+            for (int thread_id = 0; thread_id < MAX_THREADS; thread_id++) {
+                ThreadCtx[thread_id].ADCinFreq = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft + 1)); // 1024+1
+                ThreadCtx[thread_id].inFreqTmp = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft));     // 1024
+
+                ThreadCtx[thread_id].plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, ThreadCtx[thread_id].ADCinFreq, FFTW_PATIENT);
+                for (int i = 0; i < NDECIDX; i++)
+                    ThreadCtx[thread_id].plans_f2t_c2c[i] = fftwf_plan_dft_1d(halfFft / (1 << i), ThreadCtx[thread_id].inFreqTmp, ThreadCtx[thread_id].inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
+            }
         }
 
         void setGainFactor(float gain) {
@@ -115,6 +122,18 @@ namespace dsp::channel {
             base_type::tempStart();
         }
 
+        void setBufferSize(int size) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            base_type::tempStop();
+            base_type::out.setBufferSize(size / 2); // each 2 real samples become 1 complex sample, and decimation
+            fftwf_free(ADCinTime);
+            ADCinTime = (float*)fftwf_malloc(size * sizeof(float) + sizeof(float) * halfFft); // large enough buffer
+            // make sure initial overlap region is zeroed to avoid reading uninitialized samples
+            memset(ADCinTime, 0, sizeof(float) * halfFft);
+            base_type::tempStart();
+        }
+
         void setOffset(double offset) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -149,28 +168,78 @@ namespace dsp::channel {
             base_type::tempStart();
         }
 
-        inline int process(int count, const int16_t* in, complex_t* out) {
+        void start() override {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            base_type::start();
+
+            shutdown = false;
+            thread_count = std::clamp<unsigned>(std::thread::hardware_concurrency() - 1, 1, MAX_THREADS);
+
+            for (int thread_id = 0; thread_id < thread_count; thread_id++) {
+                workerThreads.emplace_back([this, thread_id]() {
+                    size_t local_batch = 0;
+                    auto ctx = &ThreadCtx[thread_id];
+
+                    while (true) {
+                        {
+                            std::unique_lock<std::mutex> lock(m);
+
+                            cv_work.wait(lock, [&] {
+                                return shutdown || batch_id != local_batch;
+                            });
+
+                            if (shutdown) {
+                                // exit
+                                break;
+                            }
+                        }
+
+                        local_batch = batch_id;
+
+                        int workPerThread = (currentFftPerBuf + int(workerThreads.size()) - 1) / int(workerThreads.size());
+                        int start_k = thread_id * workPerThread;
+                        int stop_k = std::min(start_k + workPerThread, currentFftPerBuf);
+                        int index = _decimationIndex;
+                        processrange(start_k, stop_k, base_type::out.writeBuf, ctx->ADCinFreq, ctx->inFreqTmp, ctx->plan_t2f_r2c, ctx->plans_f2t_c2c[index]);
+
+                        {
+                            std::lock_guard<std::mutex> lock(m);
+                            if (++completed == thread_count)
+                                cv_done.notify_one();
+                        }
+                    }
+                });
+            }
+        }
+
+        void stop() override {
+            {
+                std::lock_guard<std::mutex> lock(m);
+                shutdown = true;
+                ++batch_id;
+            }
+            cv_work.notify_all();
+
+            for (auto& th : workerThreads) {
+                if (th.joinable()) {
+                    th.join();
+                }
+            }
+            workerThreads.clear();
+        }
+
+        void processrange(int start_k, int stop_k, complex_t* out, fftwf_complex* ADCinFreq, fftwf_complex* inFreqTmp, fftwf_plan plan_t2f_r2c, fftwf_plan plan_f2t_c2c) {
             int decimate;
             int mtunebin;
             bool lsb;
 
-            {
-                std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
-                decimate = _decimationIndex;
-                mtunebin = _mtunebin;
-                lsb = _lsb;
-            }
+            decimate = _decimationIndex;
+            mtunebin = _mtunebin;
+            lsb = _lsb;
 
             // holds the FFT size for the current decimation level
             int mfft = halfFft / (1 << decimate); // = halfFft / 2^mdecimation
-
-            // when arriving here, we have 'count' new samples in 'in'
-            // and we have halffft samples overlapped from last time in ADCInTime
-
-            // Convert input into ADCInTime buffer
-            convert_float(in, &ADCinTime[halfFft], count);
-
-            base_type::_in->flush();
 
             // Calculate the parameters for the first half
             size_t shift_count = std::min(mfft / 2, halfFft - mtunebin);
@@ -181,11 +250,8 @@ namespace dsp::channel {
             auto dest = &inFreqTmp[mfft / 2];
             auto filter2 = &filter[halfFft - mfft / 2];
 
-            // calcuate how many times we should run fft/ifft pair
-            // we can estimate how many output samples we can get
-            const int fftPerBuf = count / (3 * halfFft / 2) + 1; // number of ffts per buffer with 256|768 overlap
             const int output_step = 3 * mfft / 4;
-            for (int k = 0; k < fftPerBuf; k++) {
+            for (int k = start_k; k < stop_k; k++) {
                 // core of fast convolution including filter and decimation
                 //   main part is 'overlap-scrap' (IMHO better name for 'overlap-save'), see
                 //   https://en.wikipedia.org/wiki/Overlap%E2%80%93save_method
@@ -214,34 +280,69 @@ namespace dsp::channel {
                 if (lsb) // lower sideband
                 {
                     // mirror just by negating the imaginary Q of complex I/Q
-                    if (k == 0)
-                    {
-                        copy<true>(out, &inFreqTmp[mfft / 4], mfft/2);
+                    if (k == 0) {
+                        copy<true>(out, &inFreqTmp[mfft / 4], mfft / 2);
                     }
-                    else
-                    {
+                    else {
                         copy<true>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
                     }
                 }
                 else // upper sideband
                 {
-                    if (k == 0)
-                    {
-                        copy<false>(out, &inFreqTmp[mfft / 4], mfft/2);
+                    if (k == 0) {
+                        copy<false>(out, &inFreqTmp[mfft / 4], mfft / 2);
                     }
-                    else
-                    {
+                    else {
                         copy<false>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
                     }
                 }
                 // result now in this->obuffers[]
             }
+        }
+
+        inline int process(int count, const int16_t* in, complex_t* out) {
+            int decimate;
 
             {
-                // save last overlap samples for next time
-                memmove(ADCinTime, &ADCinTime[count], sizeof(*ADCinTime) * halfFft);
+                std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+                decimate = _decimationIndex;
             }
 
+            // holds the FFT size for the current decimation level
+            int mfft = halfFft / (1 << decimate); // = halfFft / 2^mdecimation
+
+            // when arriving here, we have 'count' new samples in 'in'
+            // and we have halffft samples overlapped from last time in ADCInTime
+
+            // Convert input into ADCInTime buffer
+            convert_float(in, &ADCinTime[halfFft], count);
+
+            base_type::_in->flush();
+
+            // calcuate how many times we should run fft/ifft pair
+            // we can estimate how many output samples we can get
+            const int fftPerBuf = count / (3 * halfFft / 2) + 1; // number of ffts per buffer with 256|768 overlap
+
+            {
+                std::lock_guard<std::mutex> lock(m);
+                completed = 0;
+                ++batch_id;
+                this->currentFftPerBuf = fftPerBuf;
+            }
+
+            cv_work.notify_all();
+
+            {
+                std::unique_lock<std::mutex> lock(m);
+                cv_done.wait(lock, [this] {
+                    return completed == thread_count;
+                });
+            }
+
+            // save last overlap samples for next time
+            memmove(ADCinTime, &ADCinTime[count], sizeof(*ADCinTime) * halfFft);
+
+            const int output_step = 3 * mfft / 4;
             int len = mfft / 2 + (fftPerBuf - 1) * output_step;
             if (this->fc != 0.0f) {
                 shift_limited_unroll_C_sse_inp_c((complexf*)out, len, &stateFineTune);
@@ -320,39 +421,25 @@ namespace dsp::channel {
             delete[] pht;
             fftwf_destroy_plan(filterplan_t2f_c2c);
             fftwf_free(pfilterht);
-
-            fftwf_destroy_plan(plan_f2t_c2c);
-            plan_f2t_c2c = fftwf_plan_dft_1d(halfFft / (1 << index), inFreqTmp, inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
         }
 
         void cleanup() {
-            if (inFreqTmp == nullptr) {
-                return;
-            }
-
             if (filter != nullptr) {
                 fftwf_free(filter);
                 filter = nullptr;
             }
 
-            fftwf_destroy_plan(plan_t2f_r2c);
-            fftwf_destroy_plan(plan_f2t_c2c);
-
-            fftwf_free(ADCinTime);
-            fftwf_free(ADCinFreq);
-            fftwf_free(inFreqTmp);
-            inFreqTmp = nullptr;
+            if (ADCinTime != nullptr) {
+                fftwf_free(ADCinTime);
+                ADCinTime = nullptr;
+            }
         }
 
     private:
         // fftwf_complex* filterHw[NDECIDX]; // Hw complex to each decimation ratio
         fftwf_complex* filter = nullptr;
-        fftwf_plan plan_f2t_c2c;
-        fftwf_plan plan_t2f_r2c; // fftw plan buffers Freq to Time complex to complex per decimation ratio
 
-        float* ADCinTime;         // point to each threads input buffers [nftt]
-        fftwf_complex* ADCinFreq; // buffers in frequency
-        fftwf_complex* inFreqTmp; // tmp decimation output buffers (after tune shift)
+        float* ADCinTime; // point to each threads input buffers [nftt]
 
         // Hardware scale factor
         float GainScale;
@@ -368,6 +455,24 @@ namespace dsp::channel {
         int _decimationIndex = 1; // the index of decimation, log of 2
         bool _lsb;
         int _mtunebin;
+
+        int currentFftPerBuf;
+        std::mutex m;
+        std::condition_variable cv_work;
+        std::condition_variable cv_done;
+        std::size_t completed = 0;
+        std::size_t batch_id = 0;
+        bool shutdown = false;
+        int thread_count;
+
+        std::vector<std::thread> workerThreads;
+
+        struct ThreadData {
+            fftwf_plan plans_f2t_c2c[NDECIDX];
+            fftwf_plan plan_t2f_r2c; // fftw plan buffers Freq to Time complex to complex per decimation ratio
+            fftwf_complex* ADCinFreq;
+            fftwf_complex* inFreqTmp;
+        } ThreadCtx[MAX_THREADS];
 
         float fc;
         shift_limited_unroll_C_sse_data_t stateFineTune;

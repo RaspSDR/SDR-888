@@ -35,7 +35,7 @@ ConfigManager config;
 // 3 * N = 4 * BufferCount + 1
 // where N is integer, so that the FFT bins align correctly
 // the values we can use 41, 80, 92, 101
-#define SDDC_ACCUMRATE_BUFFER_COUNT 101
+#define SDDC_ACCUMRATE_BUFFER_COUNT 41
 #define SDDC_BUFFER_SIZE            (16 * 1024 / 2)
 
 #define TUNER_IF_FREQUENCY 4570000.0
@@ -87,6 +87,9 @@ public:
         std::string devSerial = config.conf["device"];
         config.release();
         select(devSerial);
+
+        dataIn.setBufferSize(SDDC_BUFFER_SIZE * SDDC_ACCUMRATE_BUFFER_COUNT);
+        ddc.setBufferSize(SDDC_BUFFER_SIZE * SDDC_ACCUMRATE_BUFFER_COUNT);
 
         sigpath::sourceManager.registerSource("RX-888", &handler);
     }
