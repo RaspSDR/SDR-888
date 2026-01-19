@@ -183,59 +183,15 @@ namespace dsp::channel {
 
             // calcuate how many times we should run fft/ifft pair
             // we can estimate how many output samples we can get
-            int fftPerBuf = count / (3 * halfFft / 2) + 1; // number of ffts per buffer with 256|768 overlap
-            float* real_input = ADCinTime;
-            {
-                // k == 0, first case, have to do differently as
-                // the offset is different, discard samples are different
-                {
-                    // FFT first stage: time to frequency, real to complex
-                    // 'full' transformation size: 2 * halfFft
-                    fftwf_execute_dft_r2c(plan_t2f_r2c, real_input, ADCinFreq);
-                    real_input += 3 * halfFft / 2;
-                    // result now in ADCinFreq[]
-                    ADCinFreq[0][0] = 0;
-                    ADCinFreq[0][1] = 0;
-                    // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
-                    {
-                        // circular shift tune fs/2 first half array into inFreqTmp[]
-                        shift_freq(inFreqTmp, source, filter, shift_count);
-                        if (mfft / 2 != shift_count)
-                            memset(inFreqTmp[shift_count], 0, sizeof(*inFreqTmp) * (mfft / 2 - shift_count));
-
-                        // circular shift tune fs/2 second half array
-                        shift_freq(&dest[start], &source2[start], &filter2[start], mfft / 2 - start);
-                        if (start != 0)
-                            memset(inFreqTmp[mfft / 2], 0, sizeof(*inFreqTmp) * start);
-                    }
-                    // result now in inFreqTmp[]
-
-                    // 'shorter' inverse FFT transform (decimation); frequency (back) to COMPLEX time domain
-                    // transform size: mfft = mfftdim[k] = halfFft / 2^k with k = mdecimation
-                    fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, inFreqTmp); //  c2c decimation
-                    // result now in inFreqTmp[]
-                }
-
-                // postprocessing
-                if (lsb) // lower sideband
-                {
-                    // mirror just by negating the imaginary Q of complex I/Q
-                    copy<true>((fftwf_complex*)out, &inFreqTmp[mfft / 4], mfft / 2);
-                }
-                else // upper sideband
-                {
-                    copy<false>((fftwf_complex*)out, &inFreqTmp[mfft / 4], mfft / 2);
-                }
-            }
-
+            const int fftPerBuf = count / (3 * halfFft / 2) + 1; // number of ffts per buffer with 256|768 overlap
             const int output_step = 3 * mfft / 4;
-            for (int k = 1; k < fftPerBuf; k++) {
+            for (int k = 0; k < fftPerBuf; k++) {
                 // core of fast convolution including filter and decimation
                 //   main part is 'overlap-scrap' (IMHO better name for 'overlap-save'), see
                 //   https://en.wikipedia.org/wiki/Overlap%E2%80%93save_method
                 // FFT first stage: time to frequency, real to complex
                 // 'full' transformation size: 2 * halfFft
-                fftwf_execute_dft_r2c(plan_t2f_r2c, real_input + (3 * halfFft / 2) * k, ADCinFreq);
+                fftwf_execute_dft_r2c(plan_t2f_r2c, ADCinTime + (3 * halfFft / 2) * k, ADCinFreq);
 
                 // result now in ADCinFreq[]
                 // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
@@ -252,23 +208,30 @@ namespace dsp::channel {
                 }
                 // result now in inFreqTmp[]
 
-                fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)ADCinFreq); //  c2c decimation
+                fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)inFreqTmp); //  c2c decimation
 
-                auto output = out + mfft / 2 + output_step * (k - 1);
-                memcpy(output, ADCinFreq, sizeof(fftwf_complex) * output_step);
                 // postprocessing
                 if (lsb) // lower sideband
                 {
                     // mirror just by negating the imaginary Q of complex I/Q
-                    int i;
-                    for (i = 0; i < output_step; i += 4) {
-                        output[i].im = -output[i].im;
-                        output[i + 1].im = -output[i + 1].im;
-                        output[i + 2].im = -output[i + 2].im;
-                        output[i + 3].im = -output[i + 3].im;
+                    if (k == 0)
+                    {
+                        copy<true>(out, &inFreqTmp[mfft / 4], mfft/2);
                     }
-                    for (; i < output_step; i++) {
-                        output[i].im = -output[i].im;
+                    else
+                    {
+                        copy<true>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
+                    }
+                }
+                else // upper sideband
+                {
+                    if (k == 0)
+                    {
+                        copy<false>(out, &inFreqTmp[mfft / 4], mfft/2);
+                    }
+                    else
+                    {
+                        copy<false>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
                     }
                 }
                 // result now in this->obuffers[]
@@ -310,15 +273,15 @@ namespace dsp::channel {
         }
 
         template <bool flip>
-        static inline void copy(fftwf_complex* dest, const fftwf_complex* source, size_t count) {
+        static inline void copy(complex_t* dest, const fftwf_complex* source, size_t count) {
             if constexpr (!flip) {
                 memcpy(dest, source, count * sizeof(fftwf_complex));
             }
             else {
                 // VOLK does not provide a direct function to negate imaginary part, so use a loop
                 for (size_t i = 0; i < count; i++) {
-                    dest[i][0] = source[i][0];
-                    dest[i][1] = -source[i][1];
+                    dest[i].re = source[i][0];
+                    dest[i].im = -source[i][1];
                 }
             }
         }
