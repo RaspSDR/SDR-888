@@ -59,14 +59,10 @@ namespace dsp::channel {
 
             setOutSamplerate(128000000, 64000000);
 
-            for (int thread_id = 0; thread_id < MAX_THREADS; thread_id++) {
-                ThreadCtx[thread_id].ADCinFreq = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft + 1)); // 1024+1
-                ThreadCtx[thread_id].inFreqTmp = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft));     // 1024
 
-                ThreadCtx[thread_id].plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, ThreadCtx[thread_id].ADCinFreq, FFTW_PATIENT);
-                for (int i = 0; i < NDECIDX; i++)
-                    ThreadCtx[thread_id].plans_f2t_c2c[i] = fftwf_plan_dft_1d(halfFft / (1 << i), ThreadCtx[thread_id].inFreqTmp, ThreadCtx[thread_id].inFreqTmp, FFTW_BACKWARD, FFTW_MEASURE);
-            }
+            plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, NULL, FFTW_PATIENT);
+            for (int i = 0; i < NDECIDX; i++)
+                plans_f2t_c2c[i] = fftwf_plan_dft_1d(halfFft / (1 << i), NULL, NULL, FFTW_BACKWARD, FFTW_PATIENT);
         }
 
         void setGainFactor(float gain) {
@@ -179,7 +175,8 @@ namespace dsp::channel {
             for (int thread_id = 0; thread_id < thread_count; thread_id++) {
                 workerThreads.emplace_back([this, thread_id]() {
                     size_t local_batch = 0;
-                    auto ctx = &ThreadCtx[thread_id];
+                    auto ADCinFreq = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft + 1)); // 1024+1
+                    auto inFreqTmp = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * (halfFft));     // 1024
 
                     while (true) {
                         {
@@ -201,7 +198,7 @@ namespace dsp::channel {
                         int start_k = thread_id * workPerThread;
                         int stop_k = std::min(start_k + workPerThread, currentFftPerBuf);
                         int index = _decimationIndex;
-                        processrange(start_k, stop_k, base_type::out.writeBuf, ctx->ADCinFreq, ctx->inFreqTmp, ctx->plan_t2f_r2c, ctx->plans_f2t_c2c[index]);
+                        processrange(start_k, stop_k, base_type::out.writeBuf, ADCinFreq, inFreqTmp, plan_t2f_r2c, plans_f2t_c2c[index]);
 
                         {
                             std::lock_guard<std::mutex> lock(m);
@@ -209,6 +206,9 @@ namespace dsp::channel {
                                 cv_done.notify_one();
                         }
                     }
+
+                    fftwf_free(ADCinFreq);
+                    fftwf_free(inFreqTmp);
                 });
             }
         }
@@ -467,12 +467,8 @@ namespace dsp::channel {
 
         std::vector<std::thread> workerThreads;
 
-        struct ThreadData {
-            fftwf_plan plans_f2t_c2c[NDECIDX];
-            fftwf_plan plan_t2f_r2c; // fftw plan buffers Freq to Time complex to complex per decimation ratio
-            fftwf_complex* ADCinFreq;
-            fftwf_complex* inFreqTmp;
-        } ThreadCtx[MAX_THREADS];
+        fftwf_plan plans_f2t_c2c[NDECIDX];
+        fftwf_plan plan_t2f_r2c; // fftw plan buffers Freq to Time complex to complex per decimation ratio
 
         float fc;
         shift_limited_unroll_C_sse_data_t stateFineTune;
