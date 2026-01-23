@@ -91,6 +91,9 @@ namespace dsp::channel {
             }
 
             _decimationIndex -= 1; // index starts from zero
+            _mtunebin = 0;      // reset mtunebin
+            fc = 0.0F;          // reset fine tune freq
+            stateFineTune = shift_limited_unroll_C_sse_init(fc, 0.0F);
 
             // create each filters
             generateFreqFilter(GainScale, _decimationIndex);
@@ -141,18 +144,24 @@ namespace dsp::channel {
             if (offset < 0)
                 offset = -offset;
 
-            offset = offset / (_inSamplerate / 2.0f);
-            // align to 1/4 of halfft
-            _mtunebin = int(offset * halfFft / 4) * 4; // mtunebin step 4 bin  ?
-            // handle the small freq drift
-            float delta = ((float)_mtunebin / halfFft) - offset;
-            float fc = delta * (1 << _decimationIndex); // ret increases with higher decimation
-            // DbgPrintf("offset %f mtunebin %d delta %f (%f)\n", offset, this->mtunebin, delta, ret);
-            if (_lsb) fc = -fc;
+            if (offset > _inSamplerate / 2) {
+                offset = 0;
+                fc = 0.0F;
+            }
+            else {
+                offset = offset / (_inSamplerate / 2.0f);
+                // align to 1/4 of halfft
+                _mtunebin = int(offset * halfFft / 4) * 4; // mtunebin step 4 bin  ?
+                // handle the small freq drift
+                float delta = ((float)_mtunebin / halfFft) - offset;
+                float fc = delta * (1 << _decimationIndex); // ret increases with higher decimation
+                // DbgPrintf("offset %f mtunebin %d delta %f (%f)\n", offset, this->mtunebin, delta, ret);
+                if (_lsb) fc = -fc;
 
-            if (this->fc != fc) {
-                stateFineTune = shift_limited_unroll_C_sse_init(fc, 0.0F);
-                this->fc = fc;
+                if (this->fc != fc) {
+                    stateFineTune = shift_limited_unroll_C_sse_init(fc, 0.0F);
+                    this->fc = fc;
+                }
             }
         }
 
@@ -234,9 +243,12 @@ namespace dsp::channel {
             int mtunebin;
             bool lsb;
 
-            decimate = _decimationIndex;
-            mtunebin = _mtunebin;
-            lsb = _lsb;
+            {
+                std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+                decimate = _decimationIndex;
+                mtunebin = _mtunebin;
+                lsb = _lsb;
+            }
 
             // holds the FFT size for the current decimation level
             int mfft = halfFft / (1 << decimate); // = halfFft / 2^mdecimation
@@ -259,6 +271,9 @@ namespace dsp::channel {
                 // 'full' transformation size: 2 * halfFft
                 fftwf_execute_dft_r2c(plan_t2f_r2c, ADCinTime + (3 * halfFft / 2) * k, ADCinFreq);
 
+                ADCinFreq[0][0] = 0.0f;
+                ADCinFreq[0][1] = 0.0f;
+
                 // result now in ADCinFreq[]
                 // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
                 {
@@ -276,6 +291,8 @@ namespace dsp::channel {
 
                 fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)inFreqTmp); //  c2c decimation
 
+                inFreqTmp[0][0] = 0.0f;
+                inFreqTmp[0][1] = 0.0f;
                 // postprocessing
                 if (lsb) // lower sideband
                 {
