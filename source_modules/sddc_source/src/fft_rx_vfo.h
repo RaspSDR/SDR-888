@@ -365,7 +365,7 @@ namespace dsp::channel {
 
     protected:
         static inline void convert_float(const int16_t* input, float* output, int count) {
-            volk_16i_s32f_convert_32f(output, input, 1.0f, count);
+            volk_16i_s32f_convert_32f(output, input, 32768.0f, count);
         }
 
         static inline void shift_freq(fftwf_complex* dest, const fftwf_complex* source1, const fftwf_complex* source2, size_t count) {
@@ -395,25 +395,23 @@ namespace dsp::channel {
             filterplan_t2f_c2c = fftwf_plan_dft_1d(halfFft, pfilterht, filter, FFTW_FORWARD, FFTW_ESTIMATE);
 
             float* pht = new float[halfFft / 4 + 1];
-            const float Astop = 120.0f;
+            const float Astop = 100.0f;
             const float relPass = 0.82f; // 82% of Nyquist should be usable
             const float relStop = 1.1f;  // 'some' alias back into transition band is OK
 
             {
                 // @todo: have dynamic bandpass filter size - depending on decimation
                 //   to allow same stopband-attenuation for all decimations
-                float Bw = 64.0f / (1 << index); // bandwidth relative to fs=64MHz
+                float Bw = 0.5 / (1 << index); // bandwidth relative to fs
                 // Bw *= 0.8f;  // easily visualize Kaiser filter's response
-                KaiserWindow(halfFft / 4 + 1, Astop, relPass * Bw / 128.0f, relStop * Bw / 128.0f, pht);
-
-                float gainadj = gain * 4096.0f / (float)(halfFft * 2); // reference is FFTN_R_ADC == 4096
+                KaiserWindow(halfFft / 4 + 1, Astop, relPass * Bw, relStop * Bw, pht);
 
                 for (int t = 0; t < halfFft; t++) {
                     pfilterht[t][0] = pfilterht[t][1] = 0.0F;
                 }
 
                 for (int t = 0; t < (halfFft / 4 + 1); t++) {
-                    pfilterht[halfFft - 1 - t][0] = gainadj * pht[t];
+                    pfilterht[halfFft - 1 - t][0] = gain * pht[t];
                 }
 
                 fftwf_execute_dft(filterplan_t2f_c2c, pfilterht, filter);

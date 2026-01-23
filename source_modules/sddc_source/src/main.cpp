@@ -49,9 +49,9 @@ enum Model {
 
 // GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode
 const float GainFactor[MODEL_COUNT] = {
-    0.695e-8f,
-    1.080e-8f,
-    0.695e-8f
+    2.28e-4f,
+    3.54e-4f,
+    2.28e-4f,
 };
 
 const uint32_t RefClockFreq[MODEL_COUNT] = {
