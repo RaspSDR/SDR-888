@@ -32,6 +32,7 @@
     "Full Waterfall Update": "瀑布图全刷新",
     "High Pass": "高通滤波器",
     "High-DPI Scaling": "高分辨率缩放",
+    "High-Z Antenna": "高阻天线",
     "IF Gain": "中频增益",
     "IF Noise Reduction": "中频噪声抑制",
     "IQ Correction": "IQ 校正",
@@ -42,6 +43,8 @@
     "Lock Menu Order": "锁定菜单顺序",
     "Low Pass": "低通滤波器",
     "Manual": "手动",
+    "Max": "上限",
+    "Min": "下限",
     "Mode": "模式",
     "Module Manager": "模块管理器",
     "Module Manager Add Table": "模块管理器：添加表",
@@ -70,5 +73,6 @@
     "This software is based on SDR++ from Alexandre Rouma (ON5RYZ) . Modified by SDDC Lab.": "本软件基于 Alexandre Rouma (ON5RYZ) 的 SDR++，由 SDDC 实验室修改。",
     "Tone Frequency": "音调频率",
     "Type": "类型",
-    "VFO Color": "VFO 颜色"
+    "VFO Color": "VFO 颜色",
+    "Zoom": "放缩"
 }

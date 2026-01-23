@@ -135,7 +135,7 @@ namespace ImGui {
         float textVOffset = 10.0f * style::uiScale;
 
         // Vertical scale
-        for (float line = startLine; line > fftMin; line -= vRange) {
+        for (float line = startLine; line >= fftMin; line -= vRange) {
             float yPos = fftAreaMax.y - ((line - fftMin) * scaleFactor);
             window->DrawList->AddLine(ImVec2(fftAreaMin.x, roundf(yPos)),
                                       ImVec2(fftAreaMax.x, roundf(yPos)),
@@ -149,7 +149,7 @@ namespace ImGui {
         double startFreq = ceilf(lowerFreq / range) * range;
         double horizScale = (double)dataWidth / viewBandwidth;
         float scaleVOfsset = 7 * style::uiScale;
-        for (double freq = startFreq; freq < upperFreq; freq += range) {
+        for (double freq = startFreq; freq <= upperFreq; freq += range) {
             double xPos = fftAreaMin.x + ((freq - lowerFreq) * horizScale);
             window->DrawList->AddLine(ImVec2(roundf(xPos), fftAreaMin.y + 1),
                                       ImVec2(roundf(xPos), fftAreaMax.y),

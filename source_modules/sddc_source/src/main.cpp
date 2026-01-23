@@ -676,7 +676,7 @@ private:
         }
 
         if (_this->port != PORT_VHF && _this->model == MODEL_RX888PRO) {
-            if (SmGui::Checkbox(_L("High-Z to 50 ohm Converter"), &_this->highz)) {
+            if (SmGui::Checkbox(_L("High-Z Antenna"), &_this->highz)) {
                 if (_this->running) {
                     sddc_enable_hf_highz(_this->openDev, _this->highz ? 1 : 0);
                 }

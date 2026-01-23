@@ -32,6 +32,7 @@
     "Full Waterfall Update": "フルウォーターフォール更新",
     "High Pass": "ハイパスフィルタ",
     "High-DPI Scaling": "高DPIスケーリング",
+    "High-Z Antenna": "高インピーダンスアンテナ",
     "IF Gain": "IFゲイン",
     "IF Noise Reduction": "IFノイズ低減",
     "IQ Correction": "IQ補正",
@@ -42,6 +43,8 @@
     "Lock Menu Order": "メニュー順をロック",
     "Low Pass": "ローパスフィルタ",
     "Manual": "手動",
+    "Max": "最大",
+    "Min": "最小",
     "Mode": "モード",
     "Module Manager": "モジュールマネージャ",
     "Module Manager Add Table": "モジュールマネージャ：テーブル追加",
@@ -70,5 +73,6 @@
     "This software is based on SDR++ from Alexandre Rouma (ON5RYZ) . Modified by SDDC Lab.": "本ソフトウェアは Alexandre Rouma (ON5RYZ) の SDR++ に基づいています。SDDC Lab によって変更されています。",
     "Tone Frequency": "トーン周波数",
     "Type": "タイプ",
-    "VFO Color": "VFO色"
+    "VFO Color": "VFO色",
+    "Zoom": "ズーム"
 }
