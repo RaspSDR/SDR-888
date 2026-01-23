@@ -80,13 +80,14 @@ inline void doZoom(int offset, int width, int inSize, int outSize, float* in, fl
     float maxVal;
     int sId;
     for (int i = 0; i < outSize; i++) {
-        maxVal = -INFINITY;
         sId = (int)id;
         uFactor = (sId + sFactor > inSize) ? sFactor - ((sId + sFactor) - inSize) : sFactor;
-        for (int j = 0; j < uFactor; j++) {
-            if (in[sId + j] > maxVal) { maxVal = in[sId + j]; }
-        }
-        out[i] = maxVal;
+
+        float acc = 0.0f;
+        volk_32f_accumulator_s32f(&acc, &in[sId], uFactor);
+
+        out[i] = acc / uFactor;
+
         id += factor;
     }
 }
