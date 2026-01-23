@@ -17,7 +17,10 @@ public:
     enum FFTWindow {
         RECTANGULAR,
         BLACKMAN,
-        NUTTALL
+        NUTTALL,
+        BLACKMAN_HARRIS,
+        HANN,
+        HAMMING
     };
 
     void init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool buffering, int decimRatio, bool dcBlocking, int fftSize, double fftRate, FFTWindow fftWindow, float* (*acquireFFTBuffer)(void* ctx), void (*releaseFFTBuffer)(void* ctx), void* fftCtx);

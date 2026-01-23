@@ -1,6 +1,9 @@
 #include "iq_frontend.h"
 #include "../dsp/window/blackman.h"
 #include "../dsp/window/nuttall.h"
+#include "../dsp/window/blackman_harris.h"
+#include "../dsp/window/hann.h"
+#include "../dsp/window/hamming.h"
 #include <utils/flog.h>
 #include <gui/gui.h>
 #include <core.h>
@@ -55,6 +58,15 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
     }
     else if (_fftWindow == FFTWindow::NUTTALL) {
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize); }
+    }
+    else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize); }
+    }
+    else if (_fftWindow == FFTWindow::HANN) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize); }
+    }
+    else if (_fftWindow == FFTWindow::HAMMING) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize); }
     }
 
     fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
@@ -288,6 +300,15 @@ void IQFrontEnd::updateFFTPath(bool updateWaterfall) {
     }
     else if (_fftWindow == FFTWindow::NUTTALL) {
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+    }
+    else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+    }
+    else if (_fftWindow == FFTWindow::HANN) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+    }
+    else if (_fftWindow == FFTWindow::HAMMING) {
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
 
     // Update FFT plan
