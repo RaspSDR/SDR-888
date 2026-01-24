@@ -386,6 +386,8 @@ private:
             return;
         }
 
+        sddc_set_xtal_freq(openDev, xtal_freq);
+
         // set HF or VHF first
         if (port != PORT_VHF) {
             sddc_set_direct_sampling(openDev, 1);
@@ -445,8 +447,10 @@ private:
         if_steps = sddc_get_if_gain_steps(openDev, &if_gain_steps);
         ifGainIdx = std::clamp<int>(ifGainIdx, 0, if_steps - 1);
 
-        sddc_set_rf_gain(openDev, rf_gain_steps[rfGainIdx]);
-        sddc_set_if_gain(openDev, if_gain_steps[ifGainIdx]);
+        if (rf_steps > 0)
+            sddc_set_rf_gain(openDev, rf_gain_steps[rfGainIdx]);
+        if (if_steps > 0)
+            sddc_set_if_gain(openDev, if_gain_steps[ifGainIdx]);
 
         buffercount = 0;
 
