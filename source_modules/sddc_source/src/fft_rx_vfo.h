@@ -59,10 +59,9 @@ namespace dsp::channel {
 
             setOutSamplerate(128000000, 64000000);
 
-
-            plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, NULL, FFTW_PATIENT);
+            plan_t2f_r2c = fftwf_plan_dft_r2c_1d(2 * halfFft, ADCinTime, (fftwf_complex*)ADCinTime, FFTW_PATIENT);
             for (int i = 0; i < NDECIDX; i++)
-                plans_f2t_c2c[i] = fftwf_plan_dft_1d(halfFft / (1 << i), NULL, NULL, FFTW_BACKWARD, FFTW_PATIENT);
+                plans_f2t_c2c[i] = fftwf_plan_dft_1d(halfFft / (1 << i), (fftwf_complex*)ADCinTime, (fftwf_complex*)ADCinTime, FFTW_BACKWARD, FFTW_PATIENT);
         }
 
         void setGainFactor(float gain) {
