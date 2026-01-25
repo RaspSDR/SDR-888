@@ -73,28 +73,25 @@ inline void doZoom(int offset, int width, int inSize, int outSize, float* in, fl
         width = 524288;
     }
 
-    float factor = (float)width / (float)outSize;
+    const float factor = (float)width / (float)outSize;
     const int sFactor = (int)ceilf(factor);
-    const float inv_full = 1.0f / (float)sFactor;
     float id = offset;
-    float maxVal;
     int sId;
     for (int i = 0; i < outSize; i++) {
         sId = (int)id;
         if (sId + sFactor > inSize) {
             int uFactor = inSize - sId;
-            float acc = 0.0f;
+            uint32_t maxindex = 0;
             if (uFactor > 0) {
-                volk_32f_accumulator_s32f(&acc, &in[sId], uFactor);
-                acc /= uFactor;
+                volk_32f_index_max_32u(&maxindex, &in[sId], uFactor);
             }
 
-            out[i] = acc;
+            out[i] = in[sId + maxindex];
         } else {
-            float acc = 0.0f;
-            volk_32f_accumulator_s32f(&acc, &in[sId], sFactor);
+            uint32_t maxindex = 0;
+            volk_32f_index_max_32u(&maxindex, &in[sId], sFactor);
 
-            out[i] = acc * inv_full;
+            out[i] = in[sId + maxindex];
         }
 
         id += factor;
