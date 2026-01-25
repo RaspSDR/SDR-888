@@ -254,6 +254,8 @@ namespace dsp::channel {
 
             // Calculate the parameters for the first half
             size_t shift_count = std::min(mfft / 2, halfFft - mtunebin);
+            if (halfFft - mtunebin < 0)
+                shift_count = 0;
             auto source = &ADCinFreq[mtunebin];
             // Calculate the parameters for the second half
             auto start = std::max(0, mfft / 2 - mtunebin);
@@ -270,9 +272,6 @@ namespace dsp::channel {
                 // 'full' transformation size: 2 * halfFft
                 fftwf_execute_dft_r2c(plan_t2f_r2c, ADCinTime + (3 * halfFft / 2) * k, ADCinFreq);
 
-                ADCinFreq[0][0] = 0.0f;
-                ADCinFreq[0][1] = 0.0f;
-
                 // result now in ADCinFreq[]
                 // circular shift (mixing in full bins) and low/bandpass filtering (complex multiplication)
                 {
@@ -288,31 +287,42 @@ namespace dsp::channel {
                 }
                 // result now in inFreqTmp[]
 
-                fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)inFreqTmp); //  c2c decimation
+                if (k != 0 || k != stop_k - 1) {
+                    fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)inFreqTmp); //  c2c decimation
 
-                inFreqTmp[0][0] = 0.0f;
-                inFreqTmp[0][1] = 0.0f;
-                // postprocessing
-                if (lsb) // lower sideband
-                {
-                    // mirror just by negating the imaginary Q of complex I/Q
-                    if (k == 0) {
-                        copy<true>(out, &inFreqTmp[mfft / 4], mfft / 2);
+                    // postprocessing
+                    if (lsb) // lower sideband
+                    {
+                        // mirror just by negating the imaginary Q of complex I/Q
+                        if (k == 0) {
+                            copy<true>(out, &inFreqTmp[mfft / 4], mfft / 2);
+                        }
+                        else {
+                            copy<true>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
+                        }
                     }
-                    else {
-                        copy<true>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
+                    else // upper sideband
+                    {
+                        if (k == 0) {
+                            copy<false>(out, &inFreqTmp[mfft / 4], mfft / 2);
+                        }
+                        else {
+                            copy<false>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
+                        }
+                    }
+                } else {
+                    auto out_ptr = out + mfft / 2 + (3 * mfft / 4) * (k - 1);
+                    fftwf_execute_dft(plan_f2t_c2c, inFreqTmp, (fftwf_complex*)out_ptr); //  c2c decimation
+
+                    if (lsb) // lower sideband
+                    {
+                        // mirror just by negating the imaginary Q of complex I/Q
+                        for (int n = 0; n < (3 * mfft / 4); n++) {
+                            out_ptr[n].im = -out_ptr[n].im;
+                        }
                     }
                 }
-                else // upper sideband
-                {
-                    if (k == 0) {
-                        copy<false>(out, &inFreqTmp[mfft / 4], mfft / 2);
-                    }
-                    else {
-                        copy<false>(out + mfft / 2 + (3 * mfft / 4) * (k - 1), &inFreqTmp[0], (3 * mfft / 4));
-                    }
-                }
-                // result now in this->obuffers[]
+                    // result now in this->obuffers[]
             }
         }
 
