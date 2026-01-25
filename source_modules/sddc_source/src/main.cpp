@@ -318,12 +318,13 @@ private:
             }
         }
 
+        rf_steps = sddc_get_rf_gain_steps(dev, &rf_gain_steps);
         if (config.conf["devices"][selectedSerial].contains("rfGain")) {
-            rf_steps = sddc_get_rf_gain_steps(dev, &rf_gain_steps);
             rfGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["rfGain"], 0, rf_steps - 1);
         }
+
+        if_steps = sddc_get_if_gain_steps(dev, &if_gain_steps);
         if (config.conf["devices"][selectedSerial].contains("ifGain")) {
-            if_steps = sddc_get_if_gain_steps(dev, &if_gain_steps);
             ifGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["ifGain"], 0, if_steps - 1);
         }
         if (config.conf["devices"][selectedSerial].contains("bias")) {
