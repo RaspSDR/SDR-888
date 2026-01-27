@@ -242,7 +242,7 @@ int sdrpp_main(int argc, char* argv[]) {
 #endif
 
     // Load config
-    flog::info("Loading config");
+    flog::info("Loading config from {0}/config.json", root);
     core::configManager.setPath(root + "/config.json");
     core::configManager.load(defConfig);
     core::configManager.enableAutoSave();
