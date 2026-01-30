@@ -165,6 +165,7 @@ public:
         RADIO_DEMOD_RAW,
         RADIO_DEMOD_SAM,
         RADIO_DEMOD_DRM,
+        RADIO_DEMOD_CDR,
         _RADIO_DEMOD_COUNT,
     };
 
@@ -214,6 +215,9 @@ private:
         };
         if (ImGui::RadioButton("DRM", _this->selectedDemodID == RADIO_DEMOD_DRM) && _this->selectedDemodID != RADIO_DEMOD_DRM) {
             _this->selectDemodByID(RADIO_DEMOD_DRM);
+        };
+        if (ImGui::RadioButton("CDR", _this->selectedDemodID == RADIO_DEMOD_CDR) && _this->selectedDemodID != RADIO_DEMOD_CDR) {
+            _this->selectDemodByID(RADIO_DEMOD_CDR);
         };
         ImGui::NextColumn();
 
@@ -334,6 +338,7 @@ private:
             case DemodID::RADIO_DEMOD_RAW:  demod = new demod::RAW(); break;
             case DemodID::RADIO_DEMOD_SAM:  demod = new demod::SAM(); break;
             case DemodID::RADIO_DEMOD_DRM:  demod = new demod::DRM(); break;
+            case DemodID::RADIO_DEMOD_CDR:  demod = new demod::CDR(); break;
             default:                        demod = NULL; break;
         }
         if (!demod) { return NULL; }

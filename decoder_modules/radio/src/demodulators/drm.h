@@ -1,6 +1,4 @@
 #pragma once
-
-#pragma once
 #include "../demod.h"
 #include "../drm/DRMReceiver.h"
 #include "implot.h"

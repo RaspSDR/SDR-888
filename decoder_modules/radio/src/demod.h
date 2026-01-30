@@ -59,3 +59,4 @@ namespace demod {
 #include "demodulators/raw.h"
 #include "demodulators/sam.h"
 #include "demodulators/drm.h"
+#include "demodulators/cdr.h"
