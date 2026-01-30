@@ -6,6 +6,7 @@ namespace demod {
     class CDR : public Demodulator {
     public:
         CDR() {
+            cdrReceiver = new CDRReceiver();
         }
 
         CDR(std::string name, ConfigManager* config, dsp::stream<dsp::complex_t>* input, double bandwidth, double audioSR) {
@@ -13,6 +14,8 @@ namespace demod {
         }
 
         ~CDR() {
+            stop();
+
             if (cdrReceiver) {
                 delete cdrReceiver;
             }
@@ -22,11 +25,7 @@ namespace demod {
             this->name = name;
             audioSampleRate = audioSR;
 
-            cdrReceiver = new CDRReceiver();
-            cdrReceiver->init(input);
-
-            Settings.Put("Receiver", "samplerateaud", (int)getIFSampleRate());
-            Settings.Put("Receiver", "sampleratesig", (int)getIFSampleRate());
+            cdrReceiver->init(input, audioSR);
         }
 
         void start() {
@@ -38,13 +37,36 @@ namespace demod {
         }
 
         void showMenu() {
-            if (programe_num > 1) {
-                ImGui::Text("Program Number: %d", current_programe + 1);
+            int currentProg = cdrReceiver->getCurrentProgreme();
+            int programe_num = cdrReceiver->getProgremeNum();
+
+            if (programe_num == 0)
+                return;
+
+            if (programe_num <= 1)
+                ImGui::BeginDisabled();
+
+            // Create program list string for combo box
+            std::string programList = "";
+            for (int i = 0; i < programe_num; i++) {
+                programList += "Program " + std::to_string(i + 1);
+                if (i < programe_num - 1) {
+                    programList += '\0';
+                }
             }
+            programList += '\0';
+
+            ImGui::LeftLabel(_L("Program"));
+            ImGui::FillWidth();
+            if (ImGui::Combo("##_cdr_program", &currentProg, programList.c_str())) {
+                cdrReceiver->setCurrentProgreme(currentProg);
+            }
+
+            if (programe_num <= 1)
+                ImGui::EndDisabled();
         }
 
         void setBandwidth(double bandwidth) {
-            
         }
 
         void setInput(dsp::stream<dsp::complex_t>* input) {
@@ -76,12 +98,7 @@ namespace demod {
     private:
         double audioSampleRate;
         CDRReceiver* cdrReceiver = nullptr;
-        
-        CSettings Settings;
 
         std::string name;
-
-        int programe_num = 1;
-        int current_programe = 0;
     };
 }

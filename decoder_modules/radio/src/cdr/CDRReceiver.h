@@ -8,107 +8,134 @@
 
 class CDRReceiver : public dsp::Processor<dsp::complex_t, dsp::stereo_t> {
     using base_type = dsp::Processor<dsp::complex_t, dsp::stereo_t>;
+
 public:
-    CDRReceiver() {
-        tempbuf = new float[163840 * 2];
+    CDRReceiver() : cdrReceiver(nullptr), decoder(nullptr) {
     }
 
     ~CDRReceiver() {
-        delete[] tempbuf;
-        draDecoder_Release(decoder);
-        CDRDemodulation_Release(cdrReceiver);
+        if (decoder) {
+            draDecoder_Release(decoder);
+            decoder = nullptr;
+        }
+        if (cdrReceiver) {
+            CDRDemodulation_Release(cdrReceiver);
+            cdrReceiver = nullptr;
+        }
     }
 
-    int process(int count, const dsp::complex_t* in, dsp::stereo_t* out)
-    {
-        // fill input until it is full, process it, and repeat
-        if (input_buf_pos + count > 130560) {
-            size_t to_copy = 130560 - input_buf_pos;
-            memcpy(&input_buf[input_buf_pos], in, to_copy * sizeof(dsp::complex_t));
-            input_buf_pos += to_copy;
-            in += to_copy;
-            count -= to_copy;
-        } else {
-            memcpy(&input_buf[input_buf_pos], in, count * sizeof(dsp::complex_t));
-            input_buf_pos += count;
-            return 0;
+    int process(int count, const dsp::complex_t* in, dsp::stereo_t* out) {
+        int running_progreme;
+        {
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            running_progreme = this->current_programe;
         }
 
-        int err = CDRDemodulation_Process(cdrReceiver, (cdr_complex*)input_buf, 130560);
+        int err = CDRDemodulation_Process(cdrReceiver, (cdr_complex*)in, count);
 
-        // copy the remaining input to the buffer
-        size_t remaining = count;
-        if (remaining > 0) {
-            memcpy(&input_buf[0], in, remaining * sizeof(dsp::complex_t));
+        if (err != cdr_NO_ERROR) {
+            return 0;
         }
 
         int bufferSize = CDRDemodulation_GetBufferSize(cdrReceiver);
         programe_num = CDRDemodulation_GetNumOfPrograms(cdrReceiver);
-        if (current_programe >= programe_num) {
-            current_programe = 0;
-        }
-
-        if (current_programe != running_progreme) {
-            running_progreme = current_programe;
-            draDecoder_Release(decoder);
-            decoder = draDecoder_Init();
+        if (running_progreme >= programe_num) {
+            running_progreme = 0;
         }
 
         int draLength;
-        cdr_byte* draStream = CDRDemodulation_GetDraStream(cdrReceiver, current_programe, &draLength);
+        cdr_byte* draStream = CDRDemodulation_GetDraStream(cdrReceiver, running_progreme, &draLength);
         if (draLength <= 0) {
             // no audio available
             return 0;
         }
 
         err = draDecoder_Process(decoder, draStream, draLength);
-        if (err != 0) {
-            return -1;
+        if (err) {
+            return 0; // Return 0 samples, not error
         }
 
-        int outputLength;
+        int outputLength = 0;
         const short* data = draDecoder_GetAudioStream(decoder, &outputLength);
+        if (!data || outputLength <= 0) {
+            return 0;
+        }
+
         int channels = draDecoder_GetAudioChannels(decoder);
+        int sampleRate = draDecoder_GetAudioSampleRate(decoder);
+
+        if (sampleRate != input_samplerate) {
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            input_samplerate = sampleRate;
+            resamp.setRates(input_samplerate, output_samplerate);
+        }
 
         if (channels == 1) {
-            // interleave mono to stereo
-            for (int i = 0; i < outputLength; i++) {
-                tempbuf[i * 2] = ((float)data[i]) / 32768.0f;
-                tempbuf[i * 2 + 1] = ((float)data[i]) / 32768.0f;
+            size_t requiredSize = (size_t)outputLength;
+            if (audioBuffer.size() < requiredSize) {
+                audioBuffer.resize(requiredSize);
             }
-            return outputLength;
+            const float scale = 1.0 / 32768.0f;
+            // Convert mono to stereo
+            dsp::stereo_t* bufPtr = audioBuffer.data();
+            for (int i = 0; i < outputLength; i++) {
+                float sample = ((float)data[i]) * scale;
+                bufPtr[i].l = sample;
+                bufPtr[i].r = sample;
+            }
+            return resamp.process(outputLength, bufPtr, out);
         }
         else if (channels == 2) {
-            for (int i = 0; i < outputLength / 2; i++) {
-                out[i].l = ((float)data[i * 2]) / 32768.0f;
-                out[i].r = ((float)data[i * 2 + 1]) / 32768.0f;
+            size_t requiredSize = (size_t)outputLength;
+            if (audioBuffer.size() < requiredSize) {
+                audioBuffer.resize(requiredSize);
             }
-
-            return outputLength / 2;
+            const float scale = 1.0 / 32768.0f;
+            dsp::stereo_t* bufPtr = audioBuffer.data();
+            for (int i = 0; i < outputLength / 2; i++) {
+                bufPtr[i].l = ((float)data[i * 2]) * scale;
+                bufPtr[i].r = ((float)data[i * 2 + 1]) * scale;
+            }
+            return resamp.process(outputLength / 2, bufPtr, out);
         }
 
         return 0;
     }
 
-    void init(dsp::stream<dsp::complex_t>* in) override {
+    void init(dsp::stream<dsp::complex_t>* in, double audioSampleRate) {
         cdrReceiver = CDRDemodulation_Init();
         decoder = draDecoder_Init();
+        programe_num = 0;
+        current_programe = 0;
+        output_samplerate = audioSampleRate;
+        input_samplerate = 24000.0;
+        resamp.init(NULL, input_samplerate, output_samplerate);
         base_type::init(in);
     }
 
-    DEFAULT_PROC_RUN;
+    DEFAULT_MULTIRATE_PROC_RUN;
+
+    int getProgremeNum() {
+        return programe_num;
+    }
+    void setCurrentProgreme(int prog) {
+        std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+        current_programe = prog;
+    }
+
+    int getCurrentProgreme() {
+        return current_programe;
+    }
 
 private:
     cdrDemodHandle cdrReceiver;
     draDecoderHandle decoder;
     dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
 
-    bool running = false;
+    double output_samplerate;
+    double input_samplerate;
+
     int current_programe = 0;
     int programe_num = 0;
-    int running_progreme = -1;
-    float* tempbuf;
-
-    dsp::complex_t input_buf[130560];
-    size_t input_buf_pos = 0;
+    std::vector<dsp::stereo_t> audioBuffer;
 };
