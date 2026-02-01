@@ -251,7 +251,7 @@ static int getDataHeader(cdr_byteArray* serviceFrame, int start, DataHeader* dat
 
     for (int i = 0; i < dataHeaderInfo->NumOfUnit; i++)
     {
-        dataHeaderInfo->UnitInfo[i].D_Type = handle[position];
+        dataHeaderInfo->UnitInfo[i].D_Type = (enum DataType)handle[position];
         position++;
         dataHeaderInfo->UnitInfo[i].Length = (handle[position] << 8) + handle[position + 1];
         position += 2;
@@ -292,7 +292,7 @@ static int getBlockHeader(cdr_byteArray* serviceFrame, int start, BlockHeader* u
 
     if (unitHeaderInfo->Type == Block_Data)
     {
-        unitHeaderInfo->D_Type = handle[position];
+        unitHeaderInfo->D_Type = (enum DataType)handle[position];
         position++;
     }
 

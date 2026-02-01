@@ -2,11 +2,12 @@
 #define CDR_FFTW_H
 
 #include <cdrDemod.h>
+#include <fftw3.h>
 
 typedef struct cdrFFTW {
     cdr_complex *fftIn;           
     cdr_complex *fftOut;          
-    void        *fftPlan;        
+    fftwf_plan  fftPlan;        
     int         fftSize;
     int         sign;
     double      flops;

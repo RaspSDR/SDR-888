@@ -25,7 +25,7 @@ cdrFFTW* cdr_FFTW_Init(int N, int isForward)
 {
     double add, mul, fma;
 
-    cdrFFTW* handle = malloc (sizeof(cdrFFTW));
+    cdrFFTW* handle = (cdrFFTW*) malloc (sizeof(cdrFFTW));
 
     handle->fftSize  = N;
 
@@ -36,9 +36,9 @@ cdrFFTW* cdr_FFTW_Init(int N, int isForward)
 
     void* fftIn_buffer   = fftwf_malloc(sizeof(cdr_complex) * handle->fftSize);
     void* fftOut_buffer  = fftwf_malloc(sizeof(cdr_complex) * handle->fftSize);
-    handle->fftIn   = fftIn_buffer;
-    handle->fftOut  = fftOut_buffer;
-    handle->fftPlan = fftwf_plan_dft_1d(handle->fftSize, fftIn_buffer, fftOut_buffer, handle->sign, Measure);
+    handle->fftIn   = (cdr_complex*) fftIn_buffer;
+    handle->fftOut  = (cdr_complex*) fftOut_buffer;
+    handle->fftPlan = fftwf_plan_dft_1d(handle->fftSize, (fftwf_complex*)fftIn_buffer, (fftwf_complex*)fftOut_buffer, handle->sign, Measure);
 
     add = 0;
     mul = 0;

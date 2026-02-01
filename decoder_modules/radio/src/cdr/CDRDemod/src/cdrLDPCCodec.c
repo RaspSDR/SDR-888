@@ -12,11 +12,6 @@
 
 #define RETRY_Interation 1000
 
-extern const CheckMatrixInfo CheckMatrix_1_4;
-extern const CheckMatrixInfo CheckMatrix_1_3;
-extern const CheckMatrixInfo CheckMatrix_1_2;
-extern const CheckMatrixInfo CheckMatrix_3_4;
-
 static void ArrayFindMax_int (const int *array, int length, int *max, int *maxIndex)
 {
 	int i;

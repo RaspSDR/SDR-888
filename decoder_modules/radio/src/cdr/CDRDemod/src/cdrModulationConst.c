@@ -1,37 +1,37 @@
-#include "cdrDemod.h"
+#include "cdrModulation.h"
 
-const cdr_complex mod_pilot [4] = {
+extern const cdr_complex mod_pilot [4] = {
     lv_cmake(+1.000000000E+0f, 1.000000000E+0f), lv_cmake(-1.000000000E+0f, 1.000000000E+0f), lv_cmake(+1.000000000E+0f, -1.000000000E+0f), lv_cmake(-1.000000000E+0f, -1.000000000E+0f),
 };
 
-const cdr_complex mod_QPSK [4] = {
+extern const cdr_complex mod_QPSK [4] = {
     lv_cmake(+7.071067812E-1f, 7.071067812E-1f), lv_cmake(-7.071067812E-1f, 7.071067812E-1f), lv_cmake(+7.071067812E-1f, -7.071067812E-1f), lv_cmake(-7.071067812E-1f, -7.071067812E-1f),
 };
 
-const cdr_complex mod_16QAM [16] = {
+extern const cdr_complex mod_16QAM [16] = {
     lv_cmake(+9.486832981E-1f, 9.486832981E-1f), lv_cmake(-9.486832981E-1f, 9.486832981E-1f), lv_cmake(+9.486832981E-1f, -9.486832981E-1f), lv_cmake(-9.486832981E-1f, -9.486832981E-1f),
 	lv_cmake(+3.162277660E-1f, 9.486832981E-1f), lv_cmake(-3.162277660E-1f, 9.486832981E-1f), lv_cmake(+3.162277660E-1f, -9.486832981E-1f), lv_cmake(-3.162277660E-1f, -9.486832981E-1f),
 	lv_cmake(+9.486832981E-1f, 3.162277660E-1f), lv_cmake(-9.486832981E-1f, 3.162277660E-1f), lv_cmake(+9.486832981E-1f, -3.162277660E-1f), lv_cmake(-9.486832981E-1f, -3.162277660E-1f),
 	lv_cmake(+3.162277660E-1f, 3.162277660E-1f), lv_cmake(-3.162277660E-1f, 3.162277660E-1f), lv_cmake(+3.162277660E-1f, -3.162277660E-1f), lv_cmake(-3.162277660E-1f, -3.162277660E-1f),
 };
 
-const cdr_complex *const mod_16QAM_Alpha1 = mod_16QAM;
+extern const cdr_complex *const mod_16QAM_Alpha1 = mod_16QAM;
 
-const cdr_complex mod_16QAM_Alpha2 [16] = {
+extern const cdr_complex mod_16QAM_Alpha2 [16] = {
     lv_cmake(+8.944271910E-1f, 8.944271910E-1f), lv_cmake(-8.944271910E-1f, 8.944271910E-1f), lv_cmake(+8.944271910E-1f, -8.944271910E-1f), lv_cmake(-8.944271910E-1f, -8.944271910E-1f),
 	lv_cmake(+4.472135955E-1f, 8.944271910E-1f), lv_cmake(-4.472135955E-1f, 8.944271910E-1f), lv_cmake(+4.472135955E-1f, -8.944271910E-1f), lv_cmake(-4.472135955E-1f, -8.944271910E-1f),
 	lv_cmake(+8.944271910E-1f, 4.472135955E-1f), lv_cmake(-8.944271910E-1f, 4.472135955E-1f), lv_cmake(+8.944271910E-1f, -4.472135955E-1f), lv_cmake(-8.944271910E-1f, -4.472135955E-1f),
 	lv_cmake(+4.472135955E-1f, 4.472135955E-1f), lv_cmake(-4.472135955E-1f, 4.472135955E-1f), lv_cmake(+4.472135955E-1f, -4.472135955E-1f), lv_cmake(-4.472135955E-1f, -4.472135955E-1f),
 };
 
-const cdr_complex mod_16QAM_Alpha4 [16] = {
+extern const cdr_complex mod_16QAM_Alpha4 [16] = {
     lv_cmake(+8.320502943E-1f, 8.320502943E-1f), lv_cmake(-8.320502943E-1f, 8.320502943E-1f), lv_cmake(+8.320502943E-1f, -8.320502943E-1f), lv_cmake(-8.320502943E-1f, -8.320502943E-1f),
 	lv_cmake(+5.547001962E-1f, 8.320502943E-1f), lv_cmake(-5.547001962E-1f, 8.320502943E-1f), lv_cmake(+5.547001962E-1f, -8.320502943E-1f), lv_cmake(-5.547001962E-1f, -8.320502943E-1f),
 	lv_cmake(+8.320502943E-1f, 5.547001962E-1f), lv_cmake(-8.320502943E-1f, 5.547001962E-1f), lv_cmake(+8.320502943E-1f, -5.547001962E-1f), lv_cmake(-8.320502943E-1f, -5.547001962E-1f),
 	lv_cmake(+5.547001962E-1f, 5.547001962E-1f), lv_cmake(-5.547001962E-1f, 5.547001962E-1f), lv_cmake(+5.547001962E-1f, -5.547001962E-1f), lv_cmake(-5.547001962E-1f, -5.547001962E-1f),
 };
 
-const cdr_complex mod_64QAM [64] = {
+extern const cdr_complex mod_64QAM [64] = {
 	lv_cmake(+1.080123450E+0f, 1.080123450E+0f), lv_cmake(-1.080123450E+0f, 1.080123450E+0f), lv_cmake(+1.080123450E+0f, -1.080123450E+0f), lv_cmake(-1.080123450E+0f, -1.080123450E+0f),
 	lv_cmake(+1.543033500E-1f, 1.080123450E+0f), lv_cmake(-1.543033500E-1f, 1.080123450E+0f), lv_cmake(+1.543033500E-1f, -1.080123450E+0f), lv_cmake(-1.543033500E-1f, -1.080123450E+0f),
 	lv_cmake(+1.080123450E+0f, 1.543033500E-1f), lv_cmake(-1.080123450E+0f, 1.543033500E-1f), lv_cmake(+1.080123450E+0f, -1.543033500E-1f), lv_cmake(-1.080123450E+0f, -1.543033500E-1f),
@@ -50,9 +50,9 @@ const cdr_complex mod_64QAM [64] = {
 	lv_cmake(+4.629100499E-1f, 4.629100499E-1f), lv_cmake(-4.629100499E-1f, 4.629100499E-1f), lv_cmake(+4.629100499E-1f, -4.629100499E-1f), lv_cmake(-4.629100499E-1f, -4.629100499E-1f),
 };
 
-const cdr_complex *const mod_64QAM_Alpha1 = mod_64QAM;
+extern const cdr_complex *const mod_64QAM_Alpha1 = mod_64QAM;
 
-const cdr_complex mod_64QAM_Alpha2 [64] = {
+extern const cdr_complex mod_64QAM_Alpha2 [64] = {
 	lv_cmake(+1.032795559E+0f, 1.032795559E+0f), lv_cmake(-1.032795559E+0f, 1.032795559E+0f), lv_cmake(+1.032795559E+0f, -1.032795559E+0f), lv_cmake(-1.032795559E+0f, -1.032795559E+0f),
 	lv_cmake(+2.581988897E-1f, 1.032795559E+0f), lv_cmake(-2.581988897E-1f, 1.032795559E+0f), lv_cmake(+2.581988897E-1f, -1.032795559E+0f), lv_cmake(-2.581988897E-1f, -1.032795559E+0f),
 	lv_cmake(+1.032795559E+0f, 2.581988897E-1f), lv_cmake(-1.032795559E+0f, 2.581988897E-1f), lv_cmake(+1.032795559E+0f, -2.581988897E-1f), lv_cmake(-1.032795559E+0f, -2.581988897E-1f),
@@ -71,7 +71,7 @@ const cdr_complex mod_64QAM_Alpha2 [64] = {
 	lv_cmake(+5.163977795E-1f, 5.163977795E-1f), lv_cmake(-5.163977795E-1f, 5.163977795E-1f), lv_cmake(+5.163977795E-1f, -5.163977795E-1f), lv_cmake(-5.163977795E-1f, -5.163977795E-1f),
 };
 
-const cdr_complex mod_64QAM_Alpha4 [64] = {
+extern const cdr_complex mod_64QAM_Alpha4 [64] = {
 	lv_cmake(+9.622504486E-1f, 9.622504486E-1f), lv_cmake(-9.622504486E-1f, 9.622504486E-1f), lv_cmake(+9.622504486E-1f, -9.622504486E-1f), lv_cmake(-9.622504486E-1f, -9.622504486E-1f),
 	lv_cmake(+3.849001795E-1f, 9.622504486E-1f), lv_cmake(-3.849001795E-1f, 9.622504486E-1f), lv_cmake(+3.849001795E-1f, -9.622504486E-1f), lv_cmake(-3.849001795E-1f, -9.622504486E-1f),
 	lv_cmake(+9.622504486E-1f, 3.849001795E-1f), lv_cmake(-9.622504486E-1f, 3.849001795E-1f), lv_cmake(+9.622504486E-1f, -3.849001795E-1f), lv_cmake(-9.622504486E-1f, -3.849001795E-1f),

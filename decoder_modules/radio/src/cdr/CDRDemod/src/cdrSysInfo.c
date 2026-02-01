@@ -120,17 +120,17 @@ static void DecodeInfo(cdr_byteArray* infoBits, cdrSysInfo* info)
 {
     info->FixFrequency  = BitArrayToInt(infoBits,  0, 1);
     info->NextFreq      = BitArrayToInt(infoBits,  1, 9) * 0.1 + 87;
-    info->FreqOffset    = BitArrayToInt(infoBits, 10, 3);
-    info->SpectrumMode  = BitArrayToInt(infoBits, 13, 6);
+    info->FreqOffset    = (enum SubBandFreq)BitArrayToInt(infoBits, 10, 3);
+    info->SpectrumMode  = (enum SpectrumType)BitArrayToInt(infoBits, 13, 6);
     info->PhyFrameIdx   = BitArrayToInt(infoBits, 19, 2);
     info->SubFrameIdx   = BitArrayToInt(infoBits, 21, 2);
     info->FrameAllocate = BitArrayToInt(infoBits, 23, 2);
-    info->SDISModType   = BitArrayToInt(infoBits, 25, 2);
-    info->MSDSModType   = BitArrayToInt(infoBits, 27, 2);
-    info->ModeAlpha     = BitArrayToInt(infoBits, 29, 2);
+    info->SDISModType   = (enum QamType)BitArrayToInt(infoBits, 25, 2);
+    info->MSDSModType   = (enum QamType)BitArrayToInt(infoBits, 27, 2);
+    info->ModeAlpha     = (enum HierarchicalMod)BitArrayToInt(infoBits, 29, 2);
     info->OneLDPCRate   = BitArrayToInt(infoBits, 31, 1);
-    info->LDPCRate1     = BitArrayToInt(infoBits, 32, 2);
-    info->LDPCRate2     = BitArrayToInt(infoBits, 34, 2);
+    info->LDPCRate1     = (enum LDPCRate)BitArrayToInt(infoBits, 32, 2);
+    info->LDPCRate2     = (enum LDPCRate)BitArrayToInt(infoBits, 34, 2);
 }
 
 

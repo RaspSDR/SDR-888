@@ -293,11 +293,11 @@ void GenerateCRCTable (cdr_byte** CRC8_table, cdr_uint** CRC32_table)
 {
     int tableSize = 256;
 
-    *CRC8_table = malloc (sizeof(cdr_byte) * tableSize);
+    *CRC8_table = (cdr_byte*)malloc (sizeof(cdr_byte) * tableSize);
     for (int i = 0; i < tableSize; i++)
         (*CRC8_table)[i] = GenCRC8(0x31, (cdr_byte)i);
 
-    *CRC32_table = malloc (sizeof(cdr_uint) * tableSize);
+    *CRC32_table = (cdr_uint*)malloc (sizeof(cdr_uint) * tableSize);
     for (int i = 0; i < tableSize; i++)
         (*CRC32_table)[i] = GenCRC32(0x04C11DB7, (cdr_byte)i);
     
@@ -411,7 +411,12 @@ void Modulator (cdr_complex *inout, int length, float frequency, float sampleRat
         if (tmp) {
             cdr_complex phase_state = lv_cmake(cosf(*phase), sinf(*phase));
             const cdr_complex phase_inc = lv_cmake(cosf(deltaPhase), sinf(deltaPhase));
+
+#if VOLK_VERSION >= 030100
             volk_32fc_s32fc_x2_rotator2_32fc(tmp, inout, &phase_inc, &phase_state, (unsigned int)length);
+#else
+            volk_32fc_s32fc_x2_rotator_32fc(tmp, inout, phase_inc, &phase_state, (unsigned int)length);
+#endif
             memcpy(inout, tmp, (size_t)length * sizeof(cdr_complex));
             volk_free(tmp);
 
