@@ -34,6 +34,8 @@ bundle_install_binary $BUNDLE $BUNDLE/Contents/Frameworks $BUILD_DIR/core/libsdr
 bundle_install_binary $BUNDLE $BUNDLE/Contents/Plugins $BUILD_DIR/source_modules/sddc_source/sddc_source.dylib
 bundle_install_binary $BUNDLE $BUNDLE/Contents/Frameworks $BUILD_DIR/source_modules/sddc_source/libsddc.dylib
 
+bundle_install_binary $BUNDLE $BUNDLE/Contents/Plugins $BUILD_DIR/source_modules/file_source/file_source.dylib
+
 # Sink modules
 bundle_install_binary $BUNDLE $BUNDLE/Contents/Plugins $BUILD_DIR/sink_modules/audio_sink/audio_sink.dylib
 
