@@ -376,12 +376,12 @@ void CrossCorrelationAmplitudePeak (const cdr_complex *a, int aLength,
 
 cdr_complex ComputeDotConjProduct (const cdr_complex *a,  const cdr_complex *b, int length)
 {
-    cdr_complex result = cdr_complex_Zero;
-    for (int i = 0; i < length; i++)
-    {
-        result += a[i] * lv_conj(b[i]);
+    if (length <= 0) {
+        return cdr_complex_Zero;
     }
 
+    cdr_complex result = cdr_complex_Zero;
+    volk_32fc_x2_conjugate_dot_prod_32fc(&result, a, b, (unsigned int)length);
     return result;
 }
 
@@ -399,18 +399,40 @@ void GetComplexPhaseArray(const cdr_complex *z, int n, float *phaseArray)
 
 void Modulator (cdr_complex *inout, int length, float frequency, float sampleRate, float *phase)
 {
+    if (length <= 0) {
+        return;
+    }
+
     float deltaPhase = 2.0f * M_PI * frequency / sampleRate;
+
+    // VOLK rotator is not guaranteed to be in-place safe, so use a temp buffer.
+    if (length >= 64) {
+        cdr_complex *tmp = (cdr_complex*)volk_malloc((size_t)length * sizeof(cdr_complex), volk_get_alignment());
+        if (tmp) {
+            cdr_complex phase_state = lv_cmake(cosf(*phase), sinf(*phase));
+            const cdr_complex phase_inc = lv_cmake(cosf(deltaPhase), sinf(deltaPhase));
+            volk_32fc_s32fc_x2_rotator2_32fc(tmp, inout, &phase_inc, &phase_state, (unsigned int)length);
+            memcpy(inout, tmp, (size_t)length * sizeof(cdr_complex));
+            volk_free(tmp);
+
+            *phase = atan2f(lv_cimag(phase_state), lv_creal(phase_state));
+            if (*phase < -M_PI) { *phase += 2.0f * M_PI; }
+            if (*phase >  M_PI) { *phase -= 2.0f * M_PI; }
+            return;
+        }
+    }
+
     for (int i = 0; i < length; i++)
     {
         inout[i] *= lv_cmake(cosf(*phase), sinf(*phase));
         *phase += deltaPhase;
         if (*phase < -M_PI)
         {
-            *phase += 2.0 * M_PI;
+            *phase += 2.0f * M_PI;
         }
         if (*phase > M_PI)
         {
-            *phase -= 2.0 * M_PI;
+            *phase -= 2.0f * M_PI;
         }
     }
 }
@@ -447,6 +469,16 @@ void ArrraySetZero_int(int *array, int length)
 
 void ArrrayMulti_complex(cdr_complex *a, cdr_complex *b, cdr_complex *c, int length)
 {
+    if (length <= 0) {
+        return;
+    }
+
+    // Only use VOLK when output doesn't overlap inputs.
+    if (c != a && c != b) {
+        volk_32fc_x2_multiply_32fc(c, a, b, (unsigned int)length);
+        return;
+    }
+
     for (int i = 0; i < length; i++)
     {
         c[i] = a[i] * b[i];
@@ -457,6 +489,28 @@ void ArrrayAmplitudePeak_complex (const cdr_complex *a, int length, float *peak,
 {
     *peakIndex = 0;
     *peak = 0.0f;
+
+    if (length <= 0) {
+        return;
+    }
+
+    // Use VOLK to compute |a[i]|^2, then find max.
+    float *mag2 = (float*)malloc((size_t)length * sizeof(float));
+    if (mag2) {
+        volk_32fc_magnitude_squared_32f(mag2, a, (unsigned int)length);
+        float bestMag2 = mag2[0];
+        int bestIdx = 0;
+        for (int i = 1; i < length; i++) {
+            if (mag2[i] > bestMag2) {
+                bestMag2 = mag2[i];
+                bestIdx = i;
+            }
+        }
+        free(mag2);
+        *peakIndex = bestIdx;
+        *peak = sqrtf(bestMag2);
+        return;
+    }
 
     for (int i = 0; i < length; i++)
     {
@@ -471,8 +525,8 @@ void ArrrayAmplitudePeak_complex (const cdr_complex *a, int length, float *peak,
 
 void ArrrayConjunction_complex (cdr_complex *a, int length)
 {
-    for (int i = 0; i < length; i++)
-    {
-        a[i] = lv_conj(a[i]);
+    if (length <= 0) {
+        return;
     }
+    volk_32fc_conjugate_32fc(a, a, (unsigned int)length);
 }
