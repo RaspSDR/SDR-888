@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 project(radio)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c")
+
+# MSVC can't compile C99 complex; compile the CDRDemod C sources as C++ so VOLK uses std::complex.
+if(MSVC)
+    file(GLOB_RECURSE CDRDEMOD_C "src/cdr/CDRDemod/src/*.c")
+    set_source_files_properties(${CDRDEMOD_C} PROPERTIES LANGUAGE CXX)
+endif()
     
 include(${SDRPP_MODULE_CMAKE})
 

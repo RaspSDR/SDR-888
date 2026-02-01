@@ -30,9 +30,9 @@ static void genPb (syncConst* syncInfo,  cdr_complex *freq_Domain)
         {
             float phase = (float)(Pb_index*(Pb_index+1)*phase_step);
             if ((Pb_index&0x01) == 0)
-                freq_Domain[k] = cosf(phase) - sinf(phase)*I;
+                freq_Domain[k] = lv_cmake(cosf(phase), -sinf(phase));
             else
-                freq_Domain[k] = cosf(phase) + sinf(phase)*I;
+                freq_Domain[k] = lv_cmake(cosf(phase), sinf(phase));
             
             Pb_index++;
         }
@@ -202,7 +202,7 @@ static void genFreqDomain (syncConst* handle)
     ArrraySetZero_complex(handle->sync_buffer, handle ->fftSize);
     for (int i = 0; i < handle->T_Sync; i++)
     {
-        handle ->sync_buffer[i] = conjf (handle->Sync_Symbols[handle->T_Sync -1 - i]);
+        handle ->sync_buffer[i] = lv_conj(handle->Sync_Symbols[handle->T_Sync -1 - i]);
     }
 
     cdr_FFTW_Proccess (handle->fft_handle, handle->sync_buffer, handle->sync_buffer);

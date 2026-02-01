@@ -11,7 +11,7 @@ static int FindNearestIndex (cdr_complex symbol, const cdr_complex* constellatio
 
     for (int i =0; i< constellationSize; i++)
     {
-        amp_error = cabsf (symbol - constellationIQ[i]);
+        amp_error = cdr_cabsf(symbol - constellationIQ[i]);
         if (amp_error < min_amp_error)
         {
             min_amp_error = amp_error;
@@ -77,7 +77,7 @@ cdr_complex* GenerateConstellation(float* amplitude, int length, double scale, i
     for (i = 0; i < constellationLength; i++)
     {
         GetIQIndex(i, &iIndex, &qIndex, *bitsPerSymbol);
-        constellationIQ[i] = (amplitude[iIndex]*scale) + (amplitude[qIndex]*scale)*I;
+        constellationIQ[i] = lv_cmake((amplitude[iIndex] * scale), (amplitude[qIndex] * scale));
     }
 
     return constellationIQ;

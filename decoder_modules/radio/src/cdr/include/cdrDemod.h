@@ -1,15 +1,22 @@
 #ifndef CDR_DEMOD_H 
 #define CDR_DEMOD_H 
 
-#include <complex.h>
+#include <math.h>
+#include <volk/volk.h>
 
-#define cdr_complex_Zero  (0.0f + 0.0fI)
+#define cdr_complex_Zero  (lv_cmake(0.0f, 0.0f))
 
 #define cdr_NO_ERROR   0 
 
 typedef unsigned char  cdr_byte;
 typedef unsigned int   cdr_uint;
-typedef float _Complex cdr_complex;
+typedef lv_32fc_t      cdr_complex;
+
+static inline float cdr_cabsf(cdr_complex x) {
+    float re = lv_creal(x);
+    float im = lv_cimag(x);
+    return sqrtf((re * re) + (im * im));
+}
 
 typedef struct cdr_byteArray
 {

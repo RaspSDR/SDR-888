@@ -317,7 +317,7 @@ void ComputeCrossCorrelation (const cdr_complex *a, int aLength,
         {
             if (i - j >= 0 && i - j < bLength)
             {
-                result[i] += a[j] * conjf(b[i - j]);
+                result[i] += a[j] * lv_conj(b[i - j]);
             }
         }
     }
@@ -335,10 +335,10 @@ void CrossCorrelationAmplitude (const cdr_complex *a, int aLength,
         {
             if (i - j >= 0 && i - j < bLength)
             {
-                sum += a[j] * conjf(b[i - j]);
+                sum += a[j] * lv_conj(b[i - j]);
             }
         }
-        result[i] = cabsf(sum);  
+        result[i] = cdr_cabsf(sum);  
     }
 }
 
@@ -361,11 +361,11 @@ void CrossCorrelationAmplitudePeak (const cdr_complex *a, int aLength,
             int bIndex = j + xIndex;
             if ( bIndex >= 0 && bIndex < bLength )
             {
-                sum += a[j] * conjf(b[bIndex]);
+                sum += a[j] * lv_conj(b[bIndex]);
             }
         }
 
-        amp = cabsf(sum);
+        amp = cdr_cabsf(sum);
         if (amp > *peak)
         {
             *peak = amp;
@@ -379,7 +379,7 @@ cdr_complex ComputeDotConjProduct (const cdr_complex *a,  const cdr_complex *b, 
     cdr_complex result = cdr_complex_Zero;
     for (int i = 0; i < length; i++)
     {
-        result += a[i] * conjf(b[i]);
+        result += a[i] * lv_conj(b[i]);
     }
 
     return result;
@@ -387,13 +387,13 @@ cdr_complex ComputeDotConjProduct (const cdr_complex *a,  const cdr_complex *b, 
 
 float GetComplexPhase(cdr_complex z)
 {
-    return atan2(cimagf(z), crealf(z));
+    return atan2f(lv_cimag(z), lv_creal(z));
 }
 
 void GetComplexPhaseArray(const cdr_complex *z, int n, float *phaseArray)
 {
     for (int i=0; i<n; i++)
-        phaseArray[i] = atan2(cimagf(z[i]), crealf(z[i]));
+        phaseArray[i] = atan2f(lv_cimag(z[i]), lv_creal(z[i]));
     return;
 }
 
@@ -402,7 +402,7 @@ void Modulator (cdr_complex *inout, int length, float frequency, float sampleRat
     float deltaPhase = 2.0f * M_PI * frequency / sampleRate;
     for (int i = 0; i < length; i++)
     {
-        inout[i] *= cexpf(I * (*phase));
+        inout[i] *= lv_cmake(cosf(*phase), sinf(*phase));
         *phase += deltaPhase;
         if (*phase < -M_PI)
         {
@@ -460,7 +460,7 @@ void ArrrayAmplitudePeak_complex (const cdr_complex *a, int length, float *peak,
 
     for (int i = 0; i < length; i++)
     {
-        float amp = cabsf(a[i]);
+        float amp = cdr_cabsf(a[i]);
         if (amp > *peak)
         {
             *peak = amp;
@@ -473,6 +473,6 @@ void ArrrayConjunction_complex (cdr_complex *a, int length)
 {
     for (int i = 0; i < length; i++)
     {
-        a[i] = conjf(a[i]);
+        a[i] = lv_conj(a[i]);
     }
 }
