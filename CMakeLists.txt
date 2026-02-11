@@ -160,6 +160,10 @@ add_subdirectory("decoder_modules/ft8_decoder")
 add_subdirectory("misc_modules/recorder")
 
 if (MSVC)
+    add_subdirectory("extio")
+endif ()
+
+if (MSVC)
     add_executable(sdrpp "src/main.cpp" "win32/resources.rc" "src/win.cpp")
     target_link_libraries(sdrpp PRIVATE "dbghelp.lib")
 else ()
