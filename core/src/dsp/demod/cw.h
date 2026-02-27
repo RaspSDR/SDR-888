@@ -12,9 +12,10 @@ namespace dsp::demod {
     public:
         CW() {}
         
-        CW(stream<complex_t>* in, double tone, double agcAttack, double agcDecay, double samplerate) { init(in, tone, agcAttack, agcDecay, samplerate); }
+        CW(stream<complex_t>* in, double tone, bool agcEnable, double agcAttack, double agcDecay, double samplerate) { init(in, tone, agcEnable, agcAttack, agcDecay, samplerate); }
 
-        void init(stream<complex_t>* in, double tone, double agcAttack, double agcDecay, double samplerate) {
+        void init(stream<complex_t>* in, double tone, bool agcEnable, double agcAttack, double agcDecay, double samplerate) {
+            _agcEnable = agcEnable;
             _tone = tone;
             _samplerate = samplerate;
             
@@ -33,6 +34,12 @@ namespace dsp::demod {
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             _tone = tone;
             xlator.setOffset(_tone, _samplerate);
+        }
+
+        void setAGCEnable(bool agcEnable) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            _agcEnable = agcEnable;
         }
 
         void setAGCAttack(double attack) {
@@ -58,11 +65,15 @@ namespace dsp::demod {
             xlator.process(count, in, xlator.out.writeBuf);
             if constexpr (std::is_same_v<T, float>) {
                 dsp::convert::ComplexToReal::process(count, xlator.out.writeBuf, out);
-                agc.process(count, out, out);
+                if (_agcEnable) {
+                    agc.process(count, out, out);
+                }
             }
-            if constexpr (std::is_same_v<T, stereo_t>) {
+            else if constexpr (std::is_same_v<T, stereo_t>) {
                 dsp::convert::ComplexToReal::process(count, xlator.out.writeBuf, agc.out.writeBuf);
-                agc.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                if (_agcEnable) {
+                    agc.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                }
                 convert::MonoToStereo::process(count, agc.out.writeBuf, out);
             }
             return count;
@@ -80,6 +91,7 @@ namespace dsp::demod {
         }
 
     private:
+        bool _agcEnable;
         double _tone;
         double _samplerate;
 

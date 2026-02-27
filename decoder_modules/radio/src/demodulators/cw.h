@@ -30,10 +30,13 @@ namespace demod {
             if (config->conf[name][getName()].contains("tone")) {
                 tone = config->conf[name][getName()]["tone"];
             }
+            if (config->conf[name][getName()].contains("agcEnable")) {
+                agcEnable = config->conf[name][getName()]["agcEnable"];
+            }
             config->release();
 
             // Define structure
-            demod.init(input, tone, agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate(), getIFSampleRate());
+            demod.init(input, tone, agcEnable, agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate(), getIFSampleRate());
         }
 
         void start() { demod.start(); }
@@ -42,21 +45,33 @@ namespace demod {
 
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
-            ImGui::LeftLabel(_L("AGC Attack"));
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderFloat(("##_radio_cw_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
-                demod.setAGCAttack(agcAttack / getIFSampleRate());
+
+            ImGui::PushID("cw_agc_enable");
+            if (ImGui::Checkbox(_L("Enable AGC"), &agcEnable)) {
+                demod.setAGCEnable(agcEnable);
                 _config->acquire();
-                _config->conf[name][getName()]["agcAttack"] = agcAttack;
+                _config->conf[name][getName()]["agcEnable"] = agcEnable;
                 _config->release(true);
             }
-            ImGui::LeftLabel(_L("AGC Decay"));
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderFloat(("##_radio_cw_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
-                demod.setAGCDecay(agcDecay / getIFSampleRate());
-                _config->acquire();
-                _config->conf[name][getName()]["agcDecay"] = agcDecay;
-                _config->release(true);
+            ImGui::PopID();
+
+            if (agcEnable) {
+                ImGui::LeftLabel(_L("AGC Attack"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_cw_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
+                    demod.setAGCAttack(agcAttack / getIFSampleRate());
+                    _config->acquire();
+                    _config->conf[name][getName()]["agcAttack"] = agcAttack;
+                    _config->release(true);
+                }
+                ImGui::LeftLabel(_L("AGC Decay"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_cw_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
+                    demod.setAGCDecay(agcDecay / getIFSampleRate());
+                    _config->acquire();
+                    _config->conf[name][getName()]["agcDecay"] = agcDecay;
+                    _config->release(true);
+                }
             }
             ImGui::LeftLabel(_L("Tone Frequency"));
             ImGui::FillWidth();
@@ -99,6 +114,7 @@ namespace demod {
 
         std::string name;
 
+        bool agcEnable = false;
         float agcAttack = 100.0f;
         float agcDecay = 5.0f;
         int tone = 800;

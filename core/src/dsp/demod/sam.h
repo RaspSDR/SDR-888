@@ -34,9 +34,9 @@ namespace dsp::demod {
 
         SAM() {}
 
-        SAM(stream<complex_t>* in, Mode mode, AGCMode agcMode, PLLSpeed pllSpeed, double bandwidth, 
+        SAM(stream<complex_t>* in, Mode mode, bool agcEnable, PLLSpeed pllSpeed, double bandwidth, 
             double agcAttack, double agcDecay, double dcBlockRate, double samplerate) { 
-            init(in, mode, agcMode, pllSpeed, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate); 
+            init(in, mode, agcEnable, pllSpeed, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate); 
         }
 
         ~SAM() {
@@ -46,10 +46,10 @@ namespace dsp::demod {
             buffer::free(delayBuf);
         }
 
-        void init(stream<complex_t>* in, Mode mode, AGCMode agcMode, PLLSpeed pllSpeed, double bandwidth, 
+        void init(stream<complex_t>* in, Mode mode, bool agcEnable, PLLSpeed pllSpeed, double bandwidth, 
                   double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
             _mode = mode;
-            _agcMode = agcMode;
+            _agcEnable = agcEnable;
             _pllSpeed = pllSpeed;
             _bandwidth = bandwidth;
             _samplerate = samplerate;
@@ -109,15 +109,6 @@ namespace dsp::demod {
             base_type::tempStart();
         }
 
-        void setAGCMode(AGCMode agcMode) {
-            assert(base_type::_block_init);
-            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
-            base_type::tempStop();
-            _agcMode = agcMode;
-            reset();
-            base_type::tempStart();
-        }
-
         void setPLLSpeed(PLLSpeed speed) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -141,6 +132,12 @@ namespace dsp::demod {
             lpfTaps = taps::lowPass(_bandwidth / 2.0, (_bandwidth / 2.0) * 0.1, _samplerate);
             lpf.setTaps(lpfTaps);
             lpfUSB.setTaps(lpfTaps);
+        }
+
+        void setAGCEnable(bool agcEnable) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            _agcEnable = agcEnable;
         }
 
         void setAGCAttack(double attack) {
@@ -199,7 +196,7 @@ namespace dsp::demod {
         int process(int count, complex_t* in, T* out) {
             // Apply carrier AGC if needed
             complex_t* procBuf = in;
-            if (_agcMode == AGCMode::CARRIER) {
+            if (_agcEnable) {
                 carrierAgc.process(count, in, carrierAgc.out.writeBuf);
                 procBuf = carrierAgc.out.writeBuf;
             }
@@ -293,14 +290,6 @@ namespace dsp::demod {
                 dcBlockUSB.process(count, audioAgcUSB.out.writeBuf, audioAgcUSB.out.writeBuf);
             } else {
                 dcBlock.process(count, audioAgc.out.writeBuf, audioAgc.out.writeBuf);
-            }
-
-            // Apply audio AGC if needed
-            if (_agcMode == AGCMode::AUDIO) {
-                audioAgc.process(count, audioAgc.out.writeBuf, audioAgc.out.writeBuf);
-                if (_mode == Mode::STEREO) {
-                    audioAgcUSB.process(count, audioAgcUSB.out.writeBuf, audioAgcUSB.out.writeBuf);
-                }
             }
 
             // Apply low-pass filter
@@ -429,7 +418,7 @@ namespace dsp::demod {
         }
 
         Mode _mode;
-        AGCMode _agcMode;
+        bool _agcEnable;
         PLLSpeed _pllSpeed;
 
         double _samplerate;
