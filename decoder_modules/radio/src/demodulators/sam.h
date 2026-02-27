@@ -127,7 +127,7 @@ namespace demod {
 
         float agcAttack = 50.0f;
         float agcDecay = 5.0f;
-        bool agcEnable = false;
+        bool agcEnable = true;
 
 
         std::string name;

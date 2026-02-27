@@ -114,7 +114,7 @@ namespace demod {
 
         std::string name;
 
-        bool agcEnable = false;
+        bool agcEnable = true;
         float agcAttack = 100.0f;
         float agcDecay = 5.0f;
         int tone = 800;
