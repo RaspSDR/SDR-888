@@ -50,24 +50,35 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
     fftSink.init(&reshape.out, handler, this);
 
     fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
+    float fftWindowScale;
     if (_fftWindow == FFTWindow::RECTANGULAR) {
+        fftWindowScale = 1.0f;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = 0; }
     }
     else if (_fftWindow == FFTWindow::BLACKMAN) {
+        fftWindowScale = dsp::window::BLACKMAN_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackman(i, _nzFFTSize); }
     }
     else if (_fftWindow == FFTWindow::NUTTALL) {
+        fftWindowScale = dsp::window::NUTTALL_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize); }
     }
     else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
+        fftWindowScale = dsp::window::BLACKMAN_HARRIS_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize); }
     }
     else if (_fftWindow == FFTWindow::HANN) {
+        fftWindowScale = dsp::window::HANN_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize); }
     }
     else if (_fftWindow == FFTWindow::HAMMING) {
+        fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize); }
     }
+
+    // Pre-calculate normalization factor with window coherent gain compensation
+    float windowGainSq = fftWindowScale * fftWindowScale;
+    _fftWindowNormalization = _fftSize * windowGainSq;
 
     fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
     fftOutBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
@@ -269,9 +280,9 @@ void IQFrontEnd::handler(dsp::complex_t* data, int count, void* ctx) {
     // Aquire buffer
     float* fftBuf = _this->_acquireFFTBuffer(_this->_fftCtx);
 
-    // Convert the complex output of the FFT to dB amplitude
+    // Convert the complex output of the FFT to dB amplitude with window scale compensation
     if (fftBuf) {
-        volk_32fc_s32f_power_spectrum_32f(fftBuf, (lv_32fc_t*)_this->fftOutBuf, _this->_fftSize, _this->_fftSize);
+        volk_32fc_s32f_power_spectrum_32f(fftBuf, (lv_32fc_t*)_this->fftOutBuf, _this->_fftWindowNormalization, _this->_fftSize);
     }
 
     // Release buffer
@@ -292,24 +303,35 @@ void IQFrontEnd::updateFFTPath(bool updateWaterfall) {
     // Update window
     dsp::buffer::free(fftWindowBuf);
     fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
+    float fftWindowScale;
     if (_fftWindow == FFTWindow::RECTANGULAR) {
+        fftWindowScale = 1.0f;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = 1.0f * ((i % 2) ? -1.0f : 1.0f); }
     }
     else if (_fftWindow == FFTWindow::BLACKMAN) {
+        fftWindowScale = dsp::window::BLACKMAN_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackman(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
     else if (_fftWindow == FFTWindow::NUTTALL) {
+        fftWindowScale = dsp::window::NUTTALL_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
     else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
+        fftWindowScale = dsp::window::BLACKMAN_HARRIS_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
     else if (_fftWindow == FFTWindow::HANN) {
+        fftWindowScale = dsp::window::HANN_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
     else if (_fftWindow == FFTWindow::HAMMING) {
+        fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
     }
+
+    // Pre-calculate normalization factor with window coherent gain compensation
+    float windowGainSq = fftWindowScale * fftWindowScale;
+    _fftWindowNormalization = _fftSize * windowGainSq;
 
     // Update FFT plan
     fftwf_free(fftInBuf);

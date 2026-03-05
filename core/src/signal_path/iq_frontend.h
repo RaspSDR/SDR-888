@@ -99,6 +99,7 @@ protected:
     // Processing data
     int _nzFFTSize;
     float* fftWindowBuf;
+    float _fftWindowNormalization;  // Pre-calculated normalization factor for power spectrum
     fftwf_complex *fftInBuf, *fftOutBuf;
     fftwf_plan fftwPlan;
     float* fftDbOut;
