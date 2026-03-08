@@ -193,6 +193,7 @@ private:
             }
             else if (strstr(product, "RX888pro")) {
                 model = MODEL_RX888PRO;
+                has_preamp = true;
             }
             else if (strstr(product, "RX888")) {
                 model = MODEL_RX888;
@@ -342,6 +343,9 @@ private:
         if (config.conf["devices"][selectedSerial].contains("dither")) {
             dither = config.conf["devices"][selectedSerial]["dither"];
         }
+        if (has_preamp && config.conf["devices"][selectedSerial].contains("preamp")) {
+            preamp = config.conf["devices"][selectedSerial]["preamp"];
+        }
         config.release();
 
         sddc_close(dev);
@@ -452,6 +456,9 @@ private:
             sddc_set_rf_gain(openDev, rf_gain_steps[rfGainIdx]);
         if (if_steps > 0)
             sddc_set_if_gain(openDev, if_gain_steps[ifGainIdx]);
+
+        if (has_preamp)
+            sddc_enable_preamp(openDev, preamp ? 1 : 0);
 
         buffercount = 0;
 
@@ -668,6 +675,17 @@ private:
             }
         }
 
+        if (_this->has_preamp && SmGui::Checkbox(_L("Preamp"), &_this->preamp)) {
+            if (_this->running) {
+                sddc_enable_preamp(_this->openDev, _this->preamp ? 1 : 0);
+            }
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["preamp"] = _this->preamp;
+                config.release(true);
+            }
+        }
+
         if (SmGui::Checkbox(_L("Bias-T"), &_this->bias)) {
             if (_this->running) {
                 int flag = _this->port == PORT_HF ? 1 : 2;
@@ -760,6 +778,9 @@ private:
     bool bias;
     bool highz;
     bool anti_alias = true;
+
+    bool has_preamp = false;
+    bool preamp = false;
 
     int original_index = -1;
     int model = MODEL_RX888;
