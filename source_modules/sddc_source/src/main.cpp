@@ -219,10 +219,12 @@ private:
 
         if (ext_clock) {
             clock_freq = ext_clock_freq;
+            sddc_enable_ext_clock(dev, 1);
         }
         else {
             clock_freq = ref_clock_freq;
             ext_clock_freq = clock_freq;
+            sddc_enable_ext_clock(dev, 0);
         }
 
         if (clock_freq < 10000000) {
@@ -236,6 +238,7 @@ private:
         ifGainIdx = 0;
         bias = false;
         highz = false;
+        preamp = false;
 
         // Load config
         config.acquire();
