@@ -47,6 +47,11 @@ enum Model {
     MODEL_COUNT
 };
 
+enum ExtGPIOMode {
+    EXT_GPIO_CUSTOM = 0,
+    EXT_GPIO_ALEX = 1,
+};
+
 // GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode
 const float GainFactor[MODEL_COUNT] = {
     2.28e-4f,
@@ -194,6 +199,7 @@ private:
             else if (strstr(product, "RX888pro")) {
                 model = MODEL_RX888PRO;
                 has_preamp = true;
+                has_ext_gpio = true;
             }
             else if (strstr(product, "RX888")) {
                 model = MODEL_RX888;
@@ -348,6 +354,14 @@ private:
         }
         if (has_preamp && config.conf["devices"][selectedSerial].contains("preamp")) {
             preamp = config.conf["devices"][selectedSerial]["preamp"];
+        }
+        if (has_ext_gpio) {
+            if (config.conf["devices"][selectedSerial].contains("ext_gpio_mode")) {
+                gpio_mode = (ExtGPIOMode)config.conf["devices"][selectedSerial]["ext_gpio_mode"];
+            }
+            if (config.conf["devices"][selectedSerial].contains("ext_gpio_bits")) {
+                gpio_bits = config.conf["devices"][selectedSerial]["ext_gpio_bits"];
+            }
         }
         config.release();
 
@@ -714,6 +728,44 @@ private:
             }
         }
 
+        if (_this->has_ext_gpio) {
+            SmGui::LeftLabel(_L("Ext GPIO Mode"));
+            if (SmGui::Combo("##_sddc_ext_gpio_mode", (int*)&_this->gpio_mode, "Custom\0Alex\0")) {
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["ext_gpio_mode"] = _this->gpio_mode;
+                    config.release(true);
+                }
+            }
+
+            if (_this->gpio_mode == EXT_GPIO_CUSTOM) {
+                SmGui::LeftLabel(_L("Bits"));
+                for (int i = 0; i < 7; ++i) {
+                    char bitLabel[32];
+                    bool enabled = (_this->gpio_bits & (1 << i)) != 0;
+                    snprintf(bitLabel, sizeof(bitLabel), "%d", i);
+                    SmGui::SameLine();
+                    if (SmGui::Checkbox(bitLabel, &enabled)) {
+                        if (enabled)
+                            _this->gpio_bits |= (1 << i);
+                        else
+                            _this->gpio_bits &= ~(1 << i);
+                        sddc_set_ext_io_port_state(_this->openDev, _this->gpio_bits);
+                        if (!_this->selectedSerial.empty()) {
+                            config.acquire();
+                            config.conf["devices"][_this->selectedSerial]["ext_gpio_bits"] = _this->gpio_bits;
+                            config.release(true);
+                        }
+                    }
+                }
+            }
+
+            // display gpio bits for debug, gpio_bits is 8bits, only lower 7 bits are used
+            char gpioStatus[32];
+            snprintf(gpioStatus, sizeof(gpioStatus), "GPIO Bits: 0x%02X", _this->gpio_bits);
+            SmGui::Text(gpioStatus);
+        }
+
         ImGui::PopID();
     }
 
@@ -784,6 +836,10 @@ private:
 
     bool has_preamp = false;
     bool preamp = false;
+
+    bool has_ext_gpio = false;
+    enum ExtGPIOMode gpio_mode;
+    uint8_t gpio_bits;
 
     int original_index = -1;
     int model = MODEL_RX888;
