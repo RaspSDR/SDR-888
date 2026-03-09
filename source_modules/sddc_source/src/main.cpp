@@ -747,7 +747,7 @@ private:
 
             if (_this->gpio_mode == EXT_GPIO_CUSTOM) {
                 SmGui::LeftLabel(_L("Bits"));
-                for (int i = 0; i < 7; ++i) {
+                for (int i = 0; i < 6; ++i) {
                     char bitLabel[32];
                     bool enabled = (_this->gpio_bits & (1 << i)) != 0;
                     snprintf(bitLabel, sizeof(bitLabel), "%d", i);

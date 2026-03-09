@@ -648,7 +648,7 @@ void MainWindow::draw() {
     ImGui::TextUnformatted(_L("Min"));
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);
     ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
-    if (ImGui::VSliderFloat("##_9_", wfSliderSize, &fftMin, -60.0f, -160.0f, "")) {
+    if (ImGui::VSliderFloat("##_9_", wfSliderSize, &fftMin, -60.0f, -135.0f, "")) {
         fftMin = std::min<float>(fftMax - 10, fftMin);
         core::configManager.acquire();
         core::configManager.conf["min"] = fftMin;
