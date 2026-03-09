@@ -34,7 +34,7 @@ endfunction()
 
 
 sddc_detect_platform(SDDC_PLATFORM)
-set(SDDC_VERSION 0.1.1)
+set(SDDC_VERSION 0.1.3)
 if (WIN32)
     set(SDDC_ARCHIVE
         "sddc-${SDDC_VERSION}-${SDDC_PLATFORM}.zip"
@@ -47,7 +47,7 @@ endif()
 
 include(FetchContent)
 
-Message("Downlaod https://github.com/RaspSDR/rx888/releases/download/v${SDDC_VERSION}/${SDDC_ARCHIVE}")
+Message("Download https://github.com/RaspSDR/rx888/releases/download/v${SDDC_VERSION}/${SDDC_ARCHIVE}")
 FetchContent_Declare(
     SDDC
     URL https://github.com/RaspSDR/rx888/releases/download/v${SDDC_VERSION}/${SDDC_ARCHIVE}

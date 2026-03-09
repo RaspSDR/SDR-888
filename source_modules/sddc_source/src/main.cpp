@@ -8,6 +8,7 @@
 #include <atomic>
 #include <assert.h>
 #include "libsddc.h"
+#include "alex.h"
 
 //#define FASTVFO_ENABLED
 
@@ -526,6 +527,12 @@ private:
                     _this->ddc.setOffset(freq);
                 }
                 break;
+            }
+
+            if (_this->has_ext_gpio && _this->gpio_mode == EXT_GPIO_ALEX) {
+                _this->gpio_bits = getAlexBandControlBits((uint64_t)freq);
+
+                sddc_set_ext_io_port_state(_this->openDev, _this->gpio_bits);
             }
         }
         _this->freq = freq;
