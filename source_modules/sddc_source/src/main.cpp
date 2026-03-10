@@ -280,8 +280,11 @@ private:
             xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
         }
 
-        if (config.conf["devices"][selectedSerial].contains("xtal_freq")) {
-            xtal_freq = config.conf["devices"][selectedSerial]["xtal_freq"];
+        std::string portName = ports.name(portId);
+        sddc_set_direct_sampling(dev, (port != PORT_VHF) ? 1 : 0);
+
+        if (config.conf["devices"][selectedSerial].contains("xtal_freq" + portName)) {
+            xtal_freq = config.conf["devices"][selectedSerial]["xtal_freq" + portName];
         }
         if (xtalrates.valueExists(xtal_freq)) {
             xtalId = xtalrates.valueId(xtal_freq);
@@ -290,8 +293,6 @@ private:
             xtalId = 1;
             xtal_freq = xtalrates[xtalId];
         }
-
-        sddc_set_direct_sampling(dev, (port != PORT_VHF) ? 1 : 0);
 
         if (port != PORT_VHF) {
             uint32_t sampleRate0;
@@ -329,8 +330,8 @@ private:
             srId = samplerates.valueId(sampleRate);
         }
 
-        if (config.conf["devices"][selectedSerial].contains("samplerate")) {
-            int desiredSr = config.conf["devices"][selectedSerial]["samplerate"];
+        if (config.conf["devices"][selectedSerial].contains("samplerate" + portName)) {
+            int desiredSr = config.conf["devices"][selectedSerial]["samplerate" + portName];
             if (samplerates.keyExists(desiredSr)) {
                 srId = samplerates.keyId(desiredSr);
                 sampleRate = samplerates[srId];
@@ -338,31 +339,31 @@ private:
         }
 
         rf_steps = sddc_get_rf_gain_steps(dev, &rf_gain_steps);
-        if (config.conf["devices"][selectedSerial].contains("rfGain")) {
-            rfGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["rfGain"], 0, rf_steps - 1);
+        if (config.conf["devices"][selectedSerial].contains("rfGain" + portName)) {
+            rfGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["rfGain" + portName], 0, rf_steps - 1);
         }
 
         if_steps = sddc_get_if_gain_steps(dev, &if_gain_steps);
-        if (config.conf["devices"][selectedSerial].contains("ifGain")) {
-            ifGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["ifGain"], 0, if_steps - 1);
+        if (config.conf["devices"][selectedSerial].contains("ifGain" + portName)) {
+            ifGainIdx = std::clamp<int>(config.conf["devices"][selectedSerial]["ifGain" + portName], 0, if_steps - 1);
         }
-        if (config.conf["devices"][selectedSerial].contains("bias")) {
-            bias = config.conf["devices"][selectedSerial]["bias"];
+        if (config.conf["devices"][selectedSerial].contains("bias" + portName)) {
+            bias = config.conf["devices"][selectedSerial]["bias" + portName];
         }
-        if (config.conf["devices"][selectedSerial].contains("pga")) {
-            pga = config.conf["devices"][selectedSerial]["pga"];
+        if (config.conf["devices"][selectedSerial].contains("pga" + portName)) {
+            pga = config.conf["devices"][selectedSerial]["pga" + portName];
         }
-        if (config.conf["devices"][selectedSerial].contains("highz")) {
-            highz = config.conf["devices"][selectedSerial]["highz"];
+        if (config.conf["devices"][selectedSerial].contains("highz" + portName)) {
+            highz = config.conf["devices"][selectedSerial]["highz" + portName];
         }
-        if (config.conf["devices"][selectedSerial].contains("rando")) {
-            rando = config.conf["devices"][selectedSerial]["rando"];
+        if (config.conf["devices"][selectedSerial].contains("rando" + portName)) {
+            rando = config.conf["devices"][selectedSerial]["rando" + portName];
         }
-        if (config.conf["devices"][selectedSerial].contains("dither")) {
-            dither = config.conf["devices"][selectedSerial]["dither"];
+        if (config.conf["devices"][selectedSerial].contains("dither" + portName)) {
+            dither = config.conf["devices"][selectedSerial]["dither" + portName];
         }
-        if (has_preamp && config.conf["devices"][selectedSerial].contains("preamp")) {
-            preamp = config.conf["devices"][selectedSerial]["preamp"];
+        if (has_preamp && config.conf["devices"][selectedSerial].contains("preamp" + portName)) {
+            preamp = config.conf["devices"][selectedSerial]["preamp" + portName];
         }
         if (has_ext_gpio) {
             if (config.conf["devices"][selectedSerial].contains("ext_gpio_mode")) {
@@ -618,13 +619,15 @@ private:
             }
         }
 
+        std::string portName = _this->ports.name(_this->portId);
+
         SmGui::LeftLabel(_L("Sample Rate"));
         SmGui::FillWidth();
         if (SmGui::Combo("##_sddc_xtal_sel", &_this->xtalId, _this->xtalrates.txt)) {
             _this->xtal_freq = _this->xtalrates.value(_this->xtalId);
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["xtal_freq"] = _this->xtalrates.key(_this->xtalId);
+                config.conf["devices"][_this->selectedSerial]["xtal_freq" + portName] = _this->xtalrates.key(_this->xtalId);
                 config.release(true);
             }
             _this->select(_this->devices.key(_this->selectedDevId));
@@ -639,7 +642,7 @@ private:
             core::setInputSampleRate(_this->sampleRate);
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["samplerate"] = _this->samplerates.key(_this->srId);
+                config.conf["devices"][_this->selectedSerial]["samplerate" + portName] = _this->samplerates.key(_this->srId);
                 config.release(true);
             }
         }
@@ -651,7 +654,7 @@ private:
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["rando"] = _this->rando;
+                config.conf["devices"][_this->selectedSerial]["rando" + portName] = _this->rando;
                 config.release(true);
             }
         }
@@ -664,7 +667,7 @@ private:
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["pga"] = _this->pga;
+                config.conf["devices"][_this->selectedSerial]["pga" + portName] = _this->pga;
                 config.release(true);
             }
         }
@@ -676,7 +679,7 @@ private:
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["dither"] = _this->dither;
+                config.conf["devices"][_this->selectedSerial]["dither" + portName] = _this->dither;
                 config.release(true);
             }
         }
@@ -694,7 +697,7 @@ private:
                 }
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["rfGain"] = _this->rfGainIdx;
+                    config.conf["devices"][_this->selectedSerial]["rfGain" + portName] = _this->rfGainIdx;
                     config.release(true);
                 }
             }
@@ -713,7 +716,7 @@ private:
                 }
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["ifGain"] = _this->ifGainIdx;
+                    config.conf["devices"][_this->selectedSerial]["ifGain" + portName] = _this->ifGainIdx;
                     config.release(true);
                 }
             }
@@ -725,7 +728,7 @@ private:
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["preamp"] = _this->preamp;
+                config.conf["devices"][_this->selectedSerial]["preamp" + portName] = _this->preamp;
                 config.release(true);
             }
         }
@@ -737,7 +740,7 @@ private:
             }
             if (!_this->selectedSerial.empty()) {
                 config.acquire();
-                config.conf["devices"][_this->selectedSerial]["bias"] = _this->bias;
+                config.conf["devices"][_this->selectedSerial]["bias" + portName] = _this->bias;
                 config.release(true);
             }
         }
@@ -749,7 +752,7 @@ private:
                 }
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
-                    config.conf["devices"][_this->selectedSerial]["highz"] = _this->highz;
+                    config.conf["devices"][_this->selectedSerial]["highz" + portName] = _this->highz;
                     config.release(true);
                 }
             }
