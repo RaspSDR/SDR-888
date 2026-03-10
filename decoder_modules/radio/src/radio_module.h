@@ -10,6 +10,7 @@
 #include <dsp/noise_reduction/fm_if.h>
 #include <dsp/noise_reduction/squelch.h>
 #include <dsp/noise_reduction/anr.h>
+#include <dsp/noise_reduction/auto_notch.h>
 #include <dsp/multirate/rational_resampler.h>
 #include <dsp/filter/deephasis.h>
 #include <core.h>
@@ -85,8 +86,10 @@ public:
         resamp.init(NULL, 250000.0, 48000.0);
         deemp.init(NULL, 50e-6, 48000.0);
         anr.init(NULL, 5);
+        anf.init(NULL, 128, 32, 0.1f, 0.01f);
 
         afChain.addBlock(&resamp, true);
+        afChain.addBlock(&anf, false);
         afChain.addBlock(&anr, false);
         afChain.addBlock(&deemp, false);
 
@@ -266,6 +269,15 @@ private:
             ImGui::PopID();
         }
 
+        if (_this->anfAllowed) {
+            ImGui::PushID("radio_anf");
+            // ANF
+            if (ImGui::Checkbox(_L("Auto Notch"), &_this->anfEnabled)) {
+                _this->setANFEnabled(_this->anfEnabled);
+            }
+            ImGui::PopID();
+        }
+
         // Noise blanker
         if (_this->nbAllowed) {
             ImGui::PushID("radio_nb");
@@ -410,6 +422,8 @@ private:
         FMIFNREnabled = false;
         fmIFPresetId = ifnrPresets.valueId(IFNR_PRESET_VOICE);
         nbAllowed = selectedDemod->getNBAllowed();
+        anrAllowed = selectedDemod->getANRAllowed();
+        anfAllowed = selectedDemod->getANFAllowed();
         nbEnabled = false;
         nbLevel = 0.0f;
         anrIntensity = 5;
@@ -561,6 +575,17 @@ private:
         // Save config
         config.acquire();
         config.conf[name][selectedDemod->getName()]["anrEnabled"] = anrEnabled;
+        config.release(true);
+    }
+
+    void setANFEnabled(bool enable) {
+        anfEnabled = enable;
+        if (!postProcEnabled || !selectedDemod) { return; }
+        afChain.setBlockEnabled(&anf, anfEnabled, [=](dsp::stream<dsp::stereo_t>* out){ stream.setInput(out); });
+
+        // Save config
+        config.acquire();
+        config.conf[name][selectedDemod->getName()]["anfEnabled"] = anfEnabled;
         config.release(true);
     }
 
@@ -729,6 +754,7 @@ private:
     dsp::chain<dsp::stereo_t> afChain;
     dsp::multirate::RationalResampler<dsp::stereo_t> resamp;
     dsp::filter::Deemphasis<dsp::stereo_t> deemp;
+    dsp::noise_reduction::AutoNotch anf;
 
     SinkManager::Stream stream;
 
@@ -767,6 +793,9 @@ private:
     bool anrAllowed = true;
     bool anrEnabled = false;
     int anrIntensity = 5;
+
+    bool anfAllowed = false;
+    bool anfEnabled = false;
 
     const double MIN_NB = 1.0;
     const double MAX_NB = 10.0;
