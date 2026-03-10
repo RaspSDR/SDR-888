@@ -150,9 +150,15 @@ private:
 
         for (int i = 0; i < devCount; ++i) {
             char serial[256];
-            int err = sddc_get_device_usb_strings(i, NULL, NULL, serial);
+            char product[256];
+            int err = sddc_get_device_usb_strings(i, NULL, product, serial);
             if (err == 0) {
-                devices.define(std::string(serial), std::string(serial), i);
+                // compose a unique name using product and serial, 
+                // use only last 6 digits of serial for better readability since the prefix is usually same for all devices
+                std::string serialStr(serial);
+                serialStr = serialStr.substr(serialStr.length() - 6);
+                std::string name = std::string(product) + " (" + serialStr + ")";
+                devices.define(std::string(serial), std::string(name), i);
             }
         }
     }
@@ -778,11 +784,6 @@ private:
                     }
                 }
             }
-
-            // display gpio bits for debug, gpio_bits is 8bits, only lower 7 bits are used
-            char gpioStatus[32];
-            snprintf(gpioStatus, sizeof(gpioStatus), "GPIO Bits: 0x%02X", _this->gpio_bits);
-            SmGui::Text(gpioStatus);
         }
 
         ImGui::PopID();
