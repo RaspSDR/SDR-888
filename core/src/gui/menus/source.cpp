@@ -303,23 +303,23 @@ namespace sourcemenu {
 
         sigpath::sourceManager.showSelectedMenu();
 
-        ImGui::PushID("sdrpp_iq_corr");
-        if (ImGui::Checkbox(_L("IQ Correction"), &iqCorrection)) {
-            sigpath::iqFrontEnd.setDCBlocking(iqCorrection);
-            core::configManager.acquire();
-            core::configManager.conf["iqCorrection"] = iqCorrection;
-            core::configManager.release(true);
-        }
-        ImGui::PopID();
+        // ImGui::PushID("sdrpp_iq_corr");
+        // if (ImGui::Checkbox(_L("IQ Correction"), &iqCorrection)) {
+        //     sigpath::iqFrontEnd.setDCBlocking(iqCorrection);
+        //     core::configManager.acquire();
+        //     core::configManager.conf["iqCorrection"] = iqCorrection;
+        //     core::configManager.release(true);
+        // }
+        // ImGui::PopID();
 
-        ImGui::PushID("sdrpp_invert_iq");
-        if (ImGui::Checkbox(_L("Invert IQ"), &invertIQ)) {
-            sigpath::iqFrontEnd.setInvertIQ(invertIQ);
-            core::configManager.acquire();
-            core::configManager.conf["invertIQ"] = invertIQ;
-            core::configManager.release(true);
-        }
-        ImGui::PopID();
+        // ImGui::PushID("sdrpp_invert_iq");
+        // if (ImGui::Checkbox(_L("Invert IQ"), &invertIQ)) {
+        //     sigpath::iqFrontEnd.setInvertIQ(invertIQ);
+        //     core::configManager.acquire();
+        //     core::configManager.conf["invertIQ"] = invertIQ;
+        //     core::configManager.release(true);
+        // }
+        // ImGui::PopID();
 
         ImGui::LeftLabel(_L("Offset mode"));
         ImGui::SetNextItemWidth(itemWidth - ImGui::GetCursorPosX() - 2.0f*(lineHeight + 1.5f*spacing));
