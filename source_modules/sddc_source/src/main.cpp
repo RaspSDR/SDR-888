@@ -49,8 +49,9 @@ enum Model {
 };
 
 enum ExtGPIOMode {
-    EXT_GPIO_CUSTOM = 0,
-    EXT_GPIO_ALEX = 1,
+    EXT_GPIO_FREE = 0,
+    EXT_GPIO_EXCLUSIVE,
+    EXT_GPIO_ALEX,
 };
 
 // GAINFACTORS to be adjusted with lab reference source measured with HDSDR Smeter rms mode
@@ -128,11 +129,11 @@ public:
 private:
     static std::string getBandwdithScaled(double bw) {
         char buf[1024];
-        if (bw >= 1000000.0) {
-            snprintf(buf, 1024, "%.2lfMHz", bw / 1000000.0);
+        if (bw >= 1e6) {
+            snprintf(buf, 1024, "%.3lfMHz", bw / 1e6);
         }
-        else if (bw >= 1000.0) {
-            snprintf(buf, 1024, "%.2lfKHz", bw / 1000.0);
+        else if (bw >= 1e3) {
+            snprintf(buf, 1024, "%.2lfKHz", bw / 1e3);
         }
         else {
             snprintf(buf, 1024, "%.2lfHz", bw);
@@ -252,6 +253,7 @@ private:
         bias = false;
         highz = false;
         preamp = false;
+        gpio_mode = EXT_GPIO_ALEX;
 
         // Load config
         config.acquire();
@@ -755,7 +757,8 @@ private:
 
         if (_this->has_ext_gpio) {
             SmGui::LeftLabel(_L("Ext GPIO Mode"));
-            if (SmGui::Combo("##_sddc_ext_gpio_mode", (int*)&_this->gpio_mode, "Custom\0Alex\0")) {
+            if (SmGui::Combo("##_sddc_ext_gpio_mode", (int*)&_this->gpio_mode, "Free\0Exclusive\0Alex\0")) {
+                _this->gpio_bits = 0;
                 if (!_this->selectedSerial.empty()) {
                     config.acquire();
                     config.conf["devices"][_this->selectedSerial]["ext_gpio_mode"] = _this->gpio_mode;
@@ -763,7 +766,7 @@ private:
                 }
             }
 
-            if (_this->gpio_mode == EXT_GPIO_CUSTOM) {
+            if (_this->gpio_mode == EXT_GPIO_FREE || _this->gpio_mode == EXT_GPIO_EXCLUSIVE) {
                 SmGui::LeftLabel(_L("Bits"));
                 for (int i = 0; i < 6; ++i) {
                     char bitLabel[32];
@@ -771,10 +774,14 @@ private:
                     snprintf(bitLabel, sizeof(bitLabel), "%d", i);
                     SmGui::SameLine();
                     if (SmGui::Checkbox(bitLabel, &enabled)) {
-                        if (enabled)
-                            _this->gpio_bits |= (1 << i);
-                        else
-                            _this->gpio_bits &= ~(1 << i);
+                        if (_this->gpio_mode == EXT_GPIO_EXCLUSIVE) {
+                            _this->gpio_bits = enabled ? (1 << i) : 0;
+                        } else {
+                            if (enabled)
+                                _this->gpio_bits |= (1 << i);
+                            else
+                                _this->gpio_bits &= ~(1 << i);
+                        }
                         sddc_set_ext_io_port_state(_this->openDev, _this->gpio_bits);
                         if (!_this->selectedSerial.empty()) {
                             config.acquire();
