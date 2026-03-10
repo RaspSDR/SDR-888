@@ -375,10 +375,21 @@ private:
         // if (port == PORT_HF) {
         //     gui::freqSelect.minFreq = 0;
         //     gui::freqSelect.maxFreq = sampleRate <= 32e6 ? 32e6 : 64e6;
+        //     gui::freqSelect.setFrequency(7000000);
         // }
-        // else {
+        // else if (port == PORT_VHF) {
         //     gui::freqSelect.minFreq = 30e6;
         //     gui::freqSelect.maxFreq = 5e9;
+        //     gui::freqSelect.setFrequency(100000000);
+        // } else if (port == PORT_FM) {
+        //     gui::freqSelect.minFreq = xtal_freq;
+        //     gui::freqSelect.maxFreq = xtal_freq + xtal_freq / 2;
+        //     gui::freqSelect.setFrequency(xtal_freq + xtal_freq / 4);
+        // }
+        // else {
+        //     gui::freqSelect.minFreq = 0;
+        //     gui::freqSelect.maxFreq = 5e9;
+        //     gui::freqSelect.setFrequency(100000000);
         // }
         // gui::freqSelect.limitFreq = true;
     }
@@ -433,13 +444,14 @@ private:
                     sddc_set_adc_filter(openDev, Bypass);
                     break;
                 case PORT_VHF:
+                    // not possible as we already checked.
                     break;
                 }
             }
 
             // Configure and start the DDC for decimation only
             ddc.setInSamplerate(xtal_freq);
-            ddc.setOutSamplerate(sampleRate, sampleRate);
+            ddc.setOutSamplerate(sampleRate, sampleRate / 2);
 
             if (port == PORT_HF) {
                 ddc.setOffset(-TUNER_IF_FREQUENCY);
@@ -457,7 +469,7 @@ private:
 
             // Configure and start the DDC for decimation only
             ddc.setInSamplerate(xtal_freq);
-            ddc.setOutSamplerate(sampleRate, sampleRate);
+            ddc.setOutSamplerate(sampleRate, sampleRate / 2);
             ddc.setOffset(-TUNER_IF_FREQUENCY);
             ddc.start();
         }
@@ -587,6 +599,17 @@ private:
             SmGui::Text(getBandwdithScaled(_this->clock_freq).c_str());
         }
 
+        SmGui::LeftLabel(_L("Mode"));
+        if (SmGui::Combo("##_sddc_port", &_this->portId, _this->ports.txt)) {
+            if (!_this->selectedSerial.empty()) {
+                config.acquire();
+                config.conf["devices"][_this->selectedSerial]["port"] = _this->ports.key(_this->portId);
+                config.release(true);
+
+                _this->select(_this->selectedSerial);
+            }
+        }
+
         SmGui::LeftLabel(_L("Sample Rate"));
         SmGui::FillWidth();
         if (SmGui::Combo("##_sddc_xtal_sel", &_this->xtalId, _this->xtalrates.txt)) {
@@ -610,17 +633,6 @@ private:
                 config.acquire();
                 config.conf["devices"][_this->selectedSerial]["samplerate"] = _this->samplerates.key(_this->srId);
                 config.release(true);
-            }
-        }
-
-        SmGui::LeftLabel(_L("Mode"));
-        if (SmGui::Combo("##_sddc_port", &_this->portId, _this->ports.txt)) {
-            if (!_this->selectedSerial.empty()) {
-                config.acquire();
-                config.conf["devices"][_this->selectedSerial]["port"] = _this->ports.key(_this->portId);
-                config.release(true);
-
-                _this->select(_this->selectedSerial);
             }
         }
 
@@ -661,7 +673,7 @@ private:
             }
         }
 
-        if (_this->rf_steps > 1) {
+        if (_this->rf_steps > 0) {
             SmGui::LeftLabel(_L("RF Gain"));
             SmGui::FillWidth();
             char label[32];
@@ -680,7 +692,7 @@ private:
             }
         }
 
-        if (_this->if_steps > 1) {
+        if (_this->if_steps > 0) {
             SmGui::LeftLabel(_L("IF Gain"));
             SmGui::FillWidth();
             char label[32];
