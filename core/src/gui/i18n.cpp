@@ -88,7 +88,7 @@ namespace gui {
             return ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
         }
 
-        // Anything else would be 4‑byte UTF‑8 → outside BMP → not allowed
+        // Anything else would be 4-byte UTF-8 => outside BMP => not allowed
         return 0xFFFD;
     }
 
