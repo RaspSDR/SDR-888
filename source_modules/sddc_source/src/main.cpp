@@ -165,6 +165,8 @@ private:
     }
 
     void select(const std::string& serial) {
+        preamp = false;
+        has_ext_gpio = false;
 
         // If there are no devices, give up
         if (devices.empty()) {
