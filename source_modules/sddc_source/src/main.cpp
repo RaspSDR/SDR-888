@@ -268,18 +268,21 @@ private:
         }
 
         xtalrates.clear();
-        if (ref_clock_freq == 27000000) {
+        if (model == MODEL_RX888PRO) {
+            // PRO
+            int c = clock_freq * 80 / 16;
+            // Force FM uses 73Mhz
+            if (port != PORT_FM) {
+                xtalrates.define(c, getBandwdithScaled(c), c);
+                xtalrates.define(c / 2, getBandwdithScaled(c / 2), c / 2);
+            }
+            xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
+        }
+        else {
             // MK1 & MK2
             uint32_t xtal_freq0 = 122880000;
             xtalrates.define(xtal_freq0, getBandwdithScaled(xtal_freq0), xtal_freq0);
             xtalrates.define(xtal_freq0 / 2, getBandwdithScaled(xtal_freq0 / 2), xtal_freq0 / 2);
-        }
-        else {
-            // PRO
-            int c = clock_freq * 80 / 16;
-            xtalrates.define(c, getBandwdithScaled(c), c);
-            xtalrates.define(c / 2, getBandwdithScaled(c / 2), c / 2);
-            xtalrates.define(clock_freq * 3, getBandwdithScaled(clock_freq * 3), clock_freq * 3);
         }
 
         std::string portName = ports.name(portId);
@@ -296,25 +299,18 @@ private:
             xtal_freq = xtalrates[xtalId];
         }
 
+        // define supported samplerates
+        samplerates.clear();
         if (port != PORT_VHF) {
             uint32_t sampleRate0;
-            // define supported samplerates
-            samplerates.clear();
             sampleRate0 = xtal_freq / 2;
             for (int i = 1; i <= 6; ++i) {
                 samplerates.define(sampleRate0, getBandwdithScaled(sampleRate0), sampleRate0);
                 sampleRate0 /= 2;
             }
-
-            if (!samplerates.valueExists(sampleRate)) {
-                sampleRate = samplerates.key(1);
-            }
-            srId = samplerates.valueId(sampleRate);
         }
         else {
             uint32_t sampleRate0;
-            // define supported samplerates
-            samplerates.clear();
             if (xtal_freq / 8 > 8e8) {
                 sampleRate0 = xtal_freq / 16;
             }
@@ -326,11 +322,11 @@ private:
                 sampleRate0 /= 2;
             }
 
-            if (!samplerates.valueExists(sampleRate)) {
-                sampleRate = samplerates.key(1);
-            }
-            srId = samplerates.valueId(sampleRate);
         }
+        if (!samplerates.valueExists(sampleRate)) {
+            sampleRate = samplerates.key(1);
+        }
+        srId = samplerates.valueId(sampleRate);
 
         if (config.conf["devices"][selectedSerial].contains("samplerate" + portName)) {
             int desiredSr = config.conf["devices"][selectedSerial]["samplerate" + portName];
