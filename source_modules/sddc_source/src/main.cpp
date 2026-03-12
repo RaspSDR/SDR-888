@@ -250,8 +250,8 @@ private:
         // Load default options
         port = PORT_HF;
         portId = ports.valueId(port);
-        rfGainIdx = 0;
-        ifGainIdx = 0;
+        rfGainIdx = 100;
+        ifGainIdx = 100;
         bias = false;
         highz = false;
         preamp = false;
@@ -459,13 +459,8 @@ private:
             // Configure and start the DDC for decimation only
             ddc.setInSamplerate(xtal_freq);
             ddc.setOutSamplerate(sampleRate, sampleRate / 2);
+            ddc.setOffset(freq);
 
-            if (port == PORT_HF) {
-                ddc.setOffset(-TUNER_IF_FREQUENCY);
-            }
-            else {
-                ddc.setOffset(freq);
-            }
             ddc.start();
         }
         else {
