@@ -54,6 +54,7 @@ public:
 protected:
     static void handler(dsp::complex_t* data, int count, void* ctx);
     void updateFFTPath(bool updateWaterfall = false);
+    void rebuildFFTWindow();
 
     static inline double genDCBlockRate(double sampleRate) {
         return 50.0 / sampleRate;
@@ -99,7 +100,7 @@ protected:
     // Processing data
     int _nzFFTSize;
     float* fftWindowBuf;
-    float _fftWindowNormalization;  // Pre-calculated normalization factor for power spectrum
+    float _fftWindowNormalization;  // Amplitude-domain FFT normalization passed to VOLK
     fftwf_complex *fftInBuf, *fftOutBuf;
     fftwf_plan fftwPlan;
     float* fftDbOut;

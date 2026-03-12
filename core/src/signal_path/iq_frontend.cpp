@@ -17,6 +17,49 @@ IQFrontEnd::~IQFrontEnd() {
     fftwf_free(fftOutBuf);
 }
 
+void IQFrontEnd::rebuildFFTWindow() {
+    dsp::buffer::free(fftWindowBuf);
+    fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
+
+    float fftWindowScale;
+
+    switch (_fftWindow) {
+    case FFTWindow::BLACKMAN: {
+        fftWindowScale = dsp::window::BLACKMAN_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackman(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::NUTTALL: {
+        fftWindowScale = dsp::window::NUTTALL_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::BLACKMAN_HARRIS: {
+        fftWindowScale = dsp::window::BLACKMAN_HARRIS_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::HANN: {
+        fftWindowScale = dsp::window::HANN_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::HAMMING: {
+        fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::RECTANGULAR:
+    default: {
+        fftWindowScale = 1.0f;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = (i % 2) ? -1.0f : 1.0f; }
+        break;
+    }
+    }
+
+    _fftWindowNormalization = _nzFFTSize * fftWindowScale;
+}
+
 void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool buffering, int decimRatio, bool dcBlocking, int fftSize, double fftRate, FFTWindow fftWindow, float* (*acquireFFTBuffer)(void* ctx), void (*releaseFFTBuffer)(void* ctx), void* fftCtx) {
     _sampleRate = sampleRate;
     _decimRatio = decimRatio;
@@ -49,36 +92,8 @@ void IQFrontEnd::init(dsp::stream<dsp::complex_t>* in, double sampleRate, bool b
     reshape.init(&fftIn, fftSize, skip);
     fftSink.init(&reshape.out, handler, this);
 
-    fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
-    float fftWindowScale;
-    if (_fftWindow == FFTWindow::RECTANGULAR) {
-        fftWindowScale = 1.0f;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = 0; }
-    }
-    else if (_fftWindow == FFTWindow::BLACKMAN) {
-        fftWindowScale = dsp::window::BLACKMAN_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackman(i, _nzFFTSize); }
-    }
-    else if (_fftWindow == FFTWindow::NUTTALL) {
-        fftWindowScale = dsp::window::NUTTALL_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize); }
-    }
-    else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
-        fftWindowScale = dsp::window::BLACKMAN_HARRIS_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize); }
-    }
-    else if (_fftWindow == FFTWindow::HANN) {
-        fftWindowScale = dsp::window::HANN_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize); }
-    }
-    else if (_fftWindow == FFTWindow::HAMMING) {
-        fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize); }
-    }
-
-    // Pre-calculate normalization factor with window coherent gain compensation
-    float windowGainSq = fftWindowScale * fftWindowScale;
-    _fftWindowNormalization = _fftSize * windowGainSq;
+    fftWindowBuf = nullptr;
+    rebuildFFTWindow();
 
     fftInBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
     fftOutBuf = (fftwf_complex*)fftwf_malloc(_fftSize * sizeof(fftwf_complex));
@@ -301,37 +316,7 @@ void IQFrontEnd::updateFFTPath(bool updateWaterfall) {
     reshape.setSkip(skip);
 
     // Update window
-    dsp::buffer::free(fftWindowBuf);
-    fftWindowBuf = dsp::buffer::alloc<float>(_nzFFTSize);
-    float fftWindowScale;
-    if (_fftWindow == FFTWindow::RECTANGULAR) {
-        fftWindowScale = 1.0f;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = 1.0f * ((i % 2) ? -1.0f : 1.0f); }
-    }
-    else if (_fftWindow == FFTWindow::BLACKMAN) {
-        fftWindowScale = dsp::window::BLACKMAN_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackman(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
-    }
-    else if (_fftWindow == FFTWindow::NUTTALL) {
-        fftWindowScale = dsp::window::NUTTALL_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::nuttall(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
-    }
-    else if (_fftWindow == FFTWindow::BLACKMAN_HARRIS) {
-        fftWindowScale = dsp::window::BLACKMAN_HARRIS_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::blackmanHarris(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
-    }
-    else if (_fftWindow == FFTWindow::HANN) {
-        fftWindowScale = dsp::window::HANN_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hann(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
-    }
-    else if (_fftWindow == FFTWindow::HAMMING) {
-        fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
-        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
-    }
-
-    // Pre-calculate normalization factor with window coherent gain compensation
-    float windowGainSq = fftWindowScale * fftWindowScale;
-    _fftWindowNormalization = _fftSize * windowGainSq;
+    rebuildFFTWindow();
 
     // Update FFT plan
     fftwf_free(fftInBuf);

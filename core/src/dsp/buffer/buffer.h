@@ -14,6 +14,7 @@ namespace dsp::buffer {
     }
 
     inline void free(void* buffer) {
-        volk_free(buffer);
+        if (buffer)
+            volk_free(buffer);
     }
 }
