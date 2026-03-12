@@ -439,7 +439,7 @@ private:
 
                 switch (port) {
                 case PORT_HF:
-                    if (xtal_freq > 64e8)
+                    if (xtal_freq > 64e6)
                         sddc_set_adc_filter(openDev, Freq64MHz);
                     else
                         sddc_set_adc_filter(openDev, Freq32MHz);
