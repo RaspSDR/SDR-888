@@ -236,8 +236,23 @@ private:
         // VFO snap interval
         ImGui::LeftLabel(_L("Snap Interval"));
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::InputInt("##_radio_snap", &_this->snapInterval, 1, 100)) {
-            if (_this->snapInterval < 1) { _this->snapInterval = 1; }
+        static const char* snapIntervalOptions =
+            "Free (1Hz)\0"
+            "1kHz\0"
+            "9kHz\0"
+            "10kHz\0"
+            "100kHz\0";
+        static const int snapIntervalValues[] = { 1, 1000, 9000, 10000, 100000 };
+        int snapIntervalOptionId = 0;
+        for (int i = 0; i < IM_ARRAYSIZE(snapIntervalValues); i++) {
+            if (_this->snapInterval == snapIntervalValues[i]) {
+                snapIntervalOptionId = i;
+                break;
+            }
+        }
+
+        if (ImGui::Combo("##_radio_snap", &snapIntervalOptionId, snapIntervalOptions)) {
+            _this->snapInterval = snapIntervalValues[snapIntervalOptionId];
             _this->vfo->setSnapInterval(_this->snapInterval);
             config.acquire();
             config.conf[_this->name][_this->selectedDemod->getName()]["snapInterval"] = _this->snapInterval;
