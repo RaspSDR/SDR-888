@@ -4,6 +4,7 @@
 #include "../dsp/window/blackman_harris.h"
 #include "../dsp/window/hann.h"
 #include "../dsp/window/hamming.h"
+#include "../dsp/window/flat_top.h"
 #include <utils/flog.h>
 #include <gui/gui.h>
 #include <core.h>
@@ -47,6 +48,11 @@ void IQFrontEnd::rebuildFFTWindow() {
     case FFTWindow::HAMMING: {
         fftWindowScale = dsp::window::HAMMING_COHERENT_GAIN;
         for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::hamming(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
+        break;
+    }
+    case FFTWindow::FLAT_TOP: {
+        fftWindowScale = dsp::window::FLAT_TOP_COHERENT_GAIN;
+        for (int i = 0; i < _nzFFTSize; i++) { fftWindowBuf[i] = dsp::window::flatTop(i, _nzFFTSize) * ((i % 2) ? -1.0f : 1.0f); }
         break;
     }
     case FFTWindow::RECTANGULAR:
