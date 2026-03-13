@@ -421,8 +421,8 @@ namespace dsp::channel {
             filterplan_t2f_c2c = fftwf_plan_dft_1d(halfFft, pfilterht, filter, FFTW_FORWARD, FFTW_ESTIMATE);
 
             float* pht = new float[halfFft / 4 + 1];
-            const float Astop = 100.0f;
-            const float relPass = 0.82f; // 82% of Nyquist should be usable
+            const float Astop = 120.0f;
+            const float relPass = 0.85f; // 85% of Nyquist should be usable
             const float relStop = 1.1f;  // 'some' alias back into transition band is OK
 
             {
