@@ -126,15 +126,6 @@ namespace demod {
             }
             ImGui::PopID();
 
-            ImGui::PushID("rds_ena");
-            if (ImGui::Checkbox(_L("Decode RDS"), &_rds)) {
-                demod.setRDSOut(_rds);
-                _config->acquire();
-                _config->conf[name][getName()]["rds"] = _rds;
-                _config->release(true);
-            }
-            ImGui::PopID();
-
             // multuipath stages
             ImGui::PushID("multipath_ena");
             if (ImGui::Checkbox(_L("Multipath Filter"), &multipathenabled)) {
@@ -147,13 +138,22 @@ namespace demod {
             }
             ImGui::PopID();
 
-            if (!multipathenabled) { style::beginDisabled(); }
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderInt(("##_radio_multipath_stages_" + name).c_str(), &multipathstages, 8, 32, "%d Stages")) {
-                demod.setMultipathStages(multipathstages);
+            if (multipathenabled) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderInt(("##_radio_multipath_stages_" + name).c_str(), &multipathstages, 8, 32, "%d Stages")) {
+                    demod.setMultipathStages(multipathstages);
+                }
             }
-            if (!multipathenabled) { style::endDisabled(); }
+
+            ImGui::PushID("rds_ena");
+            if (ImGui::Checkbox(_L("Decode RDS"), &_rds)) {
+                demod.setRDSOut(_rds);
+                _config->acquire();
+                _config->conf[name][getName()]["rds"] = _rds;
+                _config->release(true);
+            }
+            ImGui::PopID();
 
             // TODO: This might break when the entire radio module is disabled
             if (!_rds) { ImGui::BeginDisabled(); }

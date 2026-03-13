@@ -287,7 +287,7 @@ private:
         if (_this->anfAllowed) {
             ImGui::PushID("radio_anf");
             // ANF
-            if (ImGui::Checkbox(_L("Auto Notch"), &_this->anfEnabled)) {
+            if (ImGui::Checkbox(_L("Auto Notch Filter"), &_this->anfEnabled)) {
                 _this->setANFEnabled(_this->anfEnabled);
             }
             ImGui::PopID();
