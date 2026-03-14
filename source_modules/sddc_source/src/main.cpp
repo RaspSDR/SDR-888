@@ -293,7 +293,7 @@ private:
             xtalId = xtalrates.valueId(xtal_freq);
         }
         else {
-            xtalId = 1;
+            xtalId = 0;
             xtal_freq = xtalrates[xtalId];
         }
 
