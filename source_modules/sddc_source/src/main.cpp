@@ -728,7 +728,7 @@ private:
 
         if (SmGui::Checkbox(_L("Bias-T"), &_this->bias)) {
             if (_this->running) {
-                int flag = _this->port == PORT_HF ? 1 : 2;
+                int flag = _this->port == PORT_VHF ? 2 : 1;
                 sddc_enable_bias_tee(_this->openDev, _this->bias ? flag : 0);
             }
             if (!_this->selectedSerial.empty()) {
