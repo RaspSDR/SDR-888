@@ -239,10 +239,11 @@ private:
         static const char* snapIntervalOptions =
             "Free (1Hz)\0"
             "1kHz\0"
+            "5kHz\0"
             "9kHz\0"
             "10kHz\0"
             "100kHz\0";
-        static const int snapIntervalValues[] = { 1, 1000, 9000, 10000, 100000 };
+        static const int snapIntervalValues[] = { 1, 1000, 5000, 9000, 10000, 100000 };
         int snapIntervalOptionId = 0;
         for (int i = 0; i < IM_ARRAYSIZE(snapIntervalValues); i++) {
             if (_this->snapInterval == snapIntervalValues[i]) {
