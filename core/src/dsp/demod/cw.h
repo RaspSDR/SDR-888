@@ -3,6 +3,7 @@
 #include "../channel/frequency_xlator.h"
 #include "../convert/complex_to_real.h"
 #include "../loop/agc.h"
+#include "../loop/gain.h"
 #include "../convert/mono_to_stereo.h"
 
 namespace dsp::demod {
@@ -12,18 +13,20 @@ namespace dsp::demod {
     public:
         CW() {}
         
-        CW(stream<complex_t>* in, double tone, bool agcEnable, double agcAttack, double agcDecay, double samplerate) { init(in, tone, agcEnable, agcAttack, agcDecay, samplerate); }
+        CW(stream<complex_t>* in, double tone, bool agcEnable, double fixedGainDb, double agcAttack, double agcDecay, double samplerate) { init(in, tone, agcEnable, fixedGainDb, agcAttack, agcDecay, samplerate); }
 
-        void init(stream<complex_t>* in, double tone, bool agcEnable, double agcAttack, double agcDecay, double samplerate) {
+        void init(stream<complex_t>* in, double tone, bool agcEnable, double fixedGainDb, double agcAttack, double agcDecay, double samplerate) {
             _agcEnable = agcEnable;
             _tone = tone;
             _samplerate = samplerate;
             
             xlator.init(NULL, tone, samplerate);
             agc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
+            gain.initDb(NULL, fixedGainDb);
 
             if constexpr (std::is_same_v<T, float>) {
                 agc.out.free();
+                gain.out.free();
             }
 
             base_type::init(in);
@@ -40,6 +43,12 @@ namespace dsp::demod {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             _agcEnable = agcEnable;
+        }
+
+        void setGainDb(double fixedGainDb) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            gain.setGainDb(fixedGainDb);
         }
 
         void setAGCAttack(double attack) {
@@ -68,11 +77,17 @@ namespace dsp::demod {
                 if (_agcEnable) {
                     agc.process(count, out, out);
                 }
+                else {
+                    gain.process(count, out, out);
+                }
             }
             else if constexpr (std::is_same_v<T, stereo_t>) {
                 dsp::convert::ComplexToReal::process(count, xlator.out.writeBuf, agc.out.writeBuf);
                 if (_agcEnable) {
                     agc.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                }
+                else {
+                    gain.process(count, agc.out.writeBuf, agc.out.writeBuf);
                 }
                 convert::MonoToStereo::process(count, agc.out.writeBuf, out);
             }
@@ -97,6 +112,7 @@ namespace dsp::demod {
 
         dsp::channel::FrequencyXlator xlator;
         dsp::loop::AGC<float> agc;
+        dsp::loop::Gain<float> gain;
 
     };
 }

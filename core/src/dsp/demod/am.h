@@ -1,6 +1,7 @@
 #pragma once
 #include "../processor.h"
 #include "../loop/agc.h"
+#include "../loop/gain.h"
 #include "../correction/dc_blocker.h"
 #include "../convert/mono_to_stereo.h"
 #include "../filter/fir.h"
@@ -13,8 +14,8 @@ namespace dsp::demod {
     public:
         AM() {}
 
-        AM(stream<complex_t>* in, double bandwidth, bool agcEnable, double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
-            init(in, agcEnable, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate);
+        AM(stream<complex_t>* in, double bandwidth, bool agcEnable, double fixedGainDb, double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
+            init(in, agcEnable, fixedGainDb, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate);
         }
 
         ~AM() {
@@ -23,12 +24,13 @@ namespace dsp::demod {
             taps::free(lpfTaps);
         }
 
-        void init(stream<complex_t>* in, bool agcEnable, double bandwidth, double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
+        void init(stream<complex_t>* in, bool agcEnable, double fixedGainDb, double bandwidth, double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
             _agcEnable = agcEnable;
             _bandwidth = bandwidth;
             _samplerate = samplerate;
 
             carrierAgc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
+            carrierGain.initDb(NULL, fixedGainDb);
             audioAgc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
             dcBlock.init(NULL, dcBlockRate);
             lpfTaps = taps::lowPass(bandwidth / 2.0, (bandwidth / 2.0) * 0.1, samplerate);
@@ -60,6 +62,12 @@ namespace dsp::demod {
             _agcEnable = agcEnable;
         }
 
+        void setGainDb(double gainDb) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            carrierGain.setGainDb(gainDb);
+        }
+
         void setAGCAttack(double attack) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -87,6 +95,7 @@ namespace dsp::demod {
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
             base_type::tempStop();
             carrierAgc.reset();
+            carrierGain.reset();
             audioAgc.reset();
             dcBlock.reset();
             base_type::tempStart();
@@ -97,6 +106,10 @@ namespace dsp::demod {
             if (_agcEnable) {
                 carrierAgc.process(count, in, carrierAgc.out.writeBuf);
                 in = carrierAgc.out.writeBuf;
+            }
+            else {
+                carrierGain.process(count, in, carrierGain.out.writeBuf);
+                in = carrierGain.out.writeBuf;
             }
 
             if constexpr (std::is_same_v<T, float>) {
@@ -138,6 +151,7 @@ namespace dsp::demod {
         double _bandwidth;
 
         loop::AGC<complex_t> carrierAgc;
+        loop::Gain<complex_t> carrierGain;
         loop::AGC<float> audioAgc;
         correction::DCBlocker<float> dcBlock;
         tap<float> lpfTaps;

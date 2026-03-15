@@ -27,10 +27,16 @@ namespace demod {
             if (config->conf[name][getName()].contains("agcDecay")) {
                 agcDecay = config->conf[name][getName()]["agcDecay"];
             }
+            if (config->conf[name][getName()].contains("agcEnable")) {
+                agcEnable = config->conf[name][getName()]["agcEnable"];
+            }
+            if (config->conf[name][getName()].contains("gain")) {
+                gain = config->conf[name][getName()]["gain"];
+            }
             config->release();
 
             // Define structure
-            demod.init(input, dsp::demod::SSB<dsp::stereo_t>::Mode::DSB, bandwidth, getIFSampleRate(), agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate());
+            demod.init(input, dsp::demod::SSB<dsp::stereo_t>::Mode::DSB, agcEnable, gain, bandwidth, getIFSampleRate(), agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate());
         }
 
         void start() { demod.start(); }
@@ -39,21 +45,46 @@ namespace demod {
 
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
-            ImGui::LeftLabel(_L("AGC Attack"));
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderFloat(("##_radio_dsb_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
-                demod.setAGCAttack(agcAttack / getIFSampleRate());
+
+            ImGui::PushID("dsb_agc_enable");
+            if (ImGui::Checkbox(_L("Enable AGC"), &agcEnable)) {
+                demod.setAGCEnable(agcEnable);
+                if (!agcEnable) {
+                    demod.setGainDb(gain);
+                }
                 _config->acquire();
-                _config->conf[name][getName()]["agcAttack"] = agcAttack;
+                _config->conf[name][getName()]["agcEnable"] = agcEnable;
                 _config->release(true);
             }
-            ImGui::LeftLabel(_L("AGC Decay"));
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::SliderFloat(("##_radio_dsb_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
-                demod.setAGCDecay(agcDecay / getIFSampleRate());
-                _config->acquire();
-                _config->conf[name][getName()]["agcDecay"] = agcDecay;
-                _config->release(true);
+            ImGui::PopID();
+
+            if (agcEnable) {
+                ImGui::LeftLabel(_L("AGC Attack"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_dsb_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
+                    demod.setAGCAttack(agcAttack / getIFSampleRate());
+                    _config->acquire();
+                    _config->conf[name][getName()]["agcAttack"] = agcAttack;
+                    _config->release(true);
+                }
+                ImGui::LeftLabel(_L("AGC Decay"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_dsb_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
+                    demod.setAGCDecay(agcDecay / getIFSampleRate());
+                    _config->acquire();
+                    _config->conf[name][getName()]["agcDecay"] = agcDecay;
+                    _config->release(true);
+                }
+            }
+            else {
+                ImGui::LeftLabel(_L("Gain"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_dsb_gain_" + name).c_str(), &gain, 0.0f, 100.0f, "%.1f dB")) {
+                    demod.setGainDb(gain);
+                    _config->acquire();
+                    _config->conf[name][getName()]["gain"] = gain;
+                    _config->release(true);
+                }
             }
         }
 
@@ -86,8 +117,10 @@ namespace demod {
 
         ConfigManager* _config;
 
+        bool agcEnable = true;
         float agcAttack = 50.0f;
         float agcDecay = 5.0f;
+        float gain = 0.0f;
 
         std::string name;
     };

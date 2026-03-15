@@ -3,6 +3,7 @@
 #include "../channel/frequency_xlator.h" 
 #include "../convert/complex_to_real.h"
 #include "../loop/agc.h"
+#include "../loop/gain.h"
 #include "../convert/mono_to_stereo.h"
 
 namespace dsp::demod {
@@ -18,18 +19,31 @@ namespace dsp::demod {
 
         SSB() {}
 
-        SSB(stream<complex_t>* in, Mode mode, double bandwidth, double samplerate, double agcAttack, double agcDecay) { init(in, mode, bandwidth, samplerate, agcAttack, agcDecay); }
+        SSB(stream<complex_t>* in, Mode mode, double bandwidth, double samplerate, double agcAttack, double agcDecay) {
+            init(in, mode, true, 0.0, bandwidth, samplerate, agcAttack, agcDecay);
+        }
+
+        SSB(stream<complex_t>* in, Mode mode, bool agcEnable, double fixedGainDb, double bandwidth, double samplerate, double agcAttack, double agcDecay) {
+            init(in, mode, agcEnable, fixedGainDb, bandwidth, samplerate, agcAttack, agcDecay);
+        }
 
         void init(stream<complex_t>* in, Mode mode, double bandwidth, double samplerate, double agcAttack, double agcDecay) {
+            init(in, mode, true, 0.0, bandwidth, samplerate, agcAttack, agcDecay);
+        }
+
+        void init(stream<complex_t>* in, Mode mode, bool agcEnable, double fixedGainDb, double bandwidth, double samplerate, double agcAttack, double agcDecay) {
             _mode = mode;
+            _agcEnable = agcEnable;
             _bandwidth = bandwidth;
             _samplerate = samplerate;
 
             xlator.init(NULL, getTranslation(), _samplerate);
             agc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
+            gain.initDb(NULL, fixedGainDb);
 
             if constexpr (std::is_same_v<T, float>) {
                 agc.out.free();
+                gain.out.free();
             }
 
             base_type::init(in);
@@ -68,6 +82,18 @@ namespace dsp::demod {
             agc.setAttack(attack);
         }
 
+        void setAGCEnable(bool agcEnable) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            _agcEnable = agcEnable;
+        }
+
+        void setGainDb(double fixedGainDb) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            gain.setGainDb(fixedGainDb);
+        }
+
         void setAGCDecay(double decay) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -80,11 +106,21 @@ namespace dsp::demod {
 
             if constexpr (std::is_same_v<T, float>) {
                 convert::ComplexToReal::process(count, xlator.out.writeBuf, out);
-                agc.process(count, out, out);
+                if (_agcEnable) {
+                    agc.process(count, out, out);
+                }
+                else {
+                    gain.process(count, out, out);
+                }
             }
             if constexpr (std::is_same_v<T, stereo_t>) {
                 convert::ComplexToReal::process(count, xlator.out.writeBuf, agc.out.writeBuf);
-                agc.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                if (_agcEnable) {
+                    agc.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                }
+                else {
+                    gain.process(count, agc.out.writeBuf, agc.out.writeBuf);
+                }
                 convert::MonoToStereo::process(count, agc.out.writeBuf, out);
             }
 
@@ -116,10 +152,12 @@ namespace dsp::demod {
         }
 
         Mode _mode;
+        bool _agcEnable = true;
         double _bandwidth;
         double _samplerate;
         channel::FrequencyXlator xlator;
         loop::AGC<float> agc;
+        loop::Gain<float> gain;
 
     };
 };
