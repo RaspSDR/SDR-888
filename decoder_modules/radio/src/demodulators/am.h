@@ -28,11 +28,15 @@ namespace demod {
             if (config->conf[name][getName()].contains("agcEnable")) {
                 agcEnable = config->conf[name][getName()]["agcEnable"];
             }
+            if (config->conf[name][getName()].contains("gain")) {
+                gain = config->conf[name][getName()]["gain"];
+            }
             config->release();
 
             // Define structure
             demod.init(input,
                        agcEnable,
+                       gain,
                        bandwidth,
                        agcAttack / getIFSampleRate(),
                        agcDecay / getIFSampleRate(),
@@ -49,6 +53,9 @@ namespace demod {
             ImGui::PushID("am_agc_enable");
             if (ImGui::Checkbox(_L("Enable AGC"), &agcEnable)) {
                 demod.setAGCEnable(agcEnable);
+                if (!agcEnable) {
+                    demod.setGainDb(gain);
+                }
                 _config->acquire();
                 _config->conf[name][getName()]["agcEnable"] = agcEnable;
                 _config->release(true);
@@ -70,6 +77,16 @@ namespace demod {
                     demod.setAGCDecay(agcDecay / getIFSampleRate());
                     _config->acquire();
                     _config->conf[name][getName()]["agcDecay"] = agcDecay;
+                    _config->release(true);
+                }
+            }
+            else {
+                ImGui::LeftLabel(_L("Gain"));
+                ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+                if (ImGui::SliderFloat(("##_radio_am_gain_" + name).c_str(), &gain, 0.0f, 100.0f, "%.1f dB")) {
+                    demod.setGainDb(gain);
+                    _config->acquire();
+                    _config->conf[name][getName()]["gain"] = gain;
                     _config->release(true);
                 }
             }
@@ -108,6 +125,7 @@ namespace demod {
 
         float agcAttack = 50.0f;
         float agcDecay = 5.0f;
+        float gain = 0.0f;
         bool agcEnable = true;
 
         std::string name;

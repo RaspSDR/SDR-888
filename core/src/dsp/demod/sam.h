@@ -2,6 +2,7 @@
 #include "../processor.h"
 #include "../loop/phase_control_loop.h"
 #include "../loop/agc.h"
+#include "../loop/gain.h"
 #include "../correction/dc_blocker.h"
 #include "../convert/mono_to_stereo.h"
 #include "../filter/fir.h"
@@ -34,9 +35,9 @@ namespace dsp::demod {
 
         SAM() {}
 
-        SAM(stream<complex_t>* in, Mode mode, bool agcEnable, PLLSpeed pllSpeed, double bandwidth, 
+        SAM(stream<complex_t>* in, Mode mode, bool agcEnable, double fixedGainDb, PLLSpeed pllSpeed, double bandwidth, 
             double agcAttack, double agcDecay, double dcBlockRate, double samplerate) { 
-            init(in, mode, agcEnable, pllSpeed, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate); 
+            init(in, mode, agcEnable, fixedGainDb, pllSpeed, bandwidth, agcAttack, agcDecay, dcBlockRate, samplerate); 
         }
 
         ~SAM() {
@@ -46,7 +47,7 @@ namespace dsp::demod {
             buffer::free(delayBuf);
         }
 
-        void init(stream<complex_t>* in, Mode mode, bool agcEnable, PLLSpeed pllSpeed, double bandwidth, 
+        void init(stream<complex_t>* in, Mode mode, bool agcEnable, double fixedGainDb, PLLSpeed pllSpeed, double bandwidth, 
                   double agcAttack, double agcDecay, double dcBlockRate, double samplerate) {
             _mode = mode;
             _agcEnable = agcEnable;
@@ -66,6 +67,7 @@ namespace dsp::demod {
 
             // Initialize AGCs
             carrierAgc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
+            carrierGain.initDb(NULL, fixedGainDb);
             audioAgc.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
             audioAgcUSB.init(NULL, 1.0, agcAttack, agcDecay, 10e6, 10.0, INFINITY);
 
@@ -140,6 +142,12 @@ namespace dsp::demod {
             _agcEnable = agcEnable;
         }
 
+        void setGainDb(double fixedGainDb) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            carrierGain.setGainDb(fixedGainDb);
+        }
+
         void setAGCAttack(double attack) {
             assert(base_type::_block_init);
             std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
@@ -181,6 +189,7 @@ namespace dsp::demod {
             pcl.phase = 0.0;
             pcl.freq = 0.0;
             carrierAgc.reset();
+            carrierGain.reset();
             audioAgc.reset();
             audioAgcUSB.reset();
             dcBlock.reset();
@@ -199,6 +208,10 @@ namespace dsp::demod {
             if (_agcEnable) {
                 carrierAgc.process(count, in, carrierAgc.out.writeBuf);
                 procBuf = carrierAgc.out.writeBuf;
+            }
+            else {
+                carrierGain.process(count, in, carrierGain.out.writeBuf);
+                procBuf = carrierGain.out.writeBuf;
             }
 
             for (int i = 0; i < count; i++) {
@@ -447,6 +460,7 @@ namespace dsp::demod {
 
         // DSP blocks
         loop::AGC<complex_t> carrierAgc;
+        loop::Gain<complex_t> carrierGain;
         loop::AGC<float> audioAgc;
         loop::AGC<float> audioAgcUSB;
         correction::DCBlocker<float> dcBlock;
