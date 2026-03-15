@@ -24,9 +24,9 @@ namespace displaymenu {
     bool restartRequired = false;
     bool fftHold = false;
     int fftHoldSpeed = 60;
-    bool fftSmoothing = false;
+    bool fftSmoothing = true;
     int fftSmoothingSpeed = 100;
-    bool snrSmoothing = false;
+    bool snrSmoothing = true;
     int snrSmoothingSpeed = 20;
     int languageId = 0;
 
