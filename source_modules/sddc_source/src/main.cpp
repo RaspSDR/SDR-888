@@ -377,26 +377,38 @@ private:
         core::setInputSampleRate(sampleRate);
 
         // Update freq select limits
-        // if (port == PORT_HF) {
-        //     gui::freqSelect.minFreq = 0;
-        //     gui::freqSelect.maxFreq = sampleRate <= 32e6 ? 32e6 : 64e6;
-        //     gui::freqSelect.setFrequency(7000000);
-        // }
-        // else if (port == PORT_VHF) {
-        //     gui::freqSelect.minFreq = 30e6;
-        //     gui::freqSelect.maxFreq = 5e9;
-        //     gui::freqSelect.setFrequency(100000000);
-        // } else if (port == PORT_FM) {
-        //     gui::freqSelect.minFreq = xtal_freq;
-        //     gui::freqSelect.maxFreq = xtal_freq + xtal_freq / 2;
-        //     gui::freqSelect.setFrequency(xtal_freq + xtal_freq / 4);
-        // }
-        // else {
-        //     gui::freqSelect.minFreq = 0;
-        //     gui::freqSelect.maxFreq = 5e9;
-        //     gui::freqSelect.setFrequency(100000000);
-        // }
-        // gui::freqSelect.limitFreq = true;
+        if (port == PORT_HF) {
+            gui::freqSelect.minFreq = 0;
+            gui::freqSelect.maxFreq = sampleRate / 2;
+            if (gui::freqSelect.frequency < gui::freqSelect.minFreq || gui::freqSelect.frequency > gui::freqSelect.maxFreq) {
+                gui::freqSelect.setFrequency(7000000);
+                gui::waterfall.setCenterFrequency(7000000);
+            }
+        }
+        else if (port == PORT_VHF) {
+            gui::freqSelect.minFreq = 30e6;
+            gui::freqSelect.maxFreq = 6e9;
+            if (gui::freqSelect.frequency < gui::freqSelect.minFreq || gui::freqSelect.frequency > gui::freqSelect.maxFreq) {
+                gui::freqSelect.setFrequency(100000000);
+                gui::waterfall.setCenterFrequency(100000000);
+            }
+        } else if (port == PORT_FM) {
+            gui::freqSelect.minFreq = xtal_freq;
+            gui::freqSelect.maxFreq = xtal_freq + xtal_freq / 2;
+            if (gui::freqSelect.frequency < gui::freqSelect.minFreq || gui::freqSelect.frequency > gui::freqSelect.maxFreq) {
+                gui::freqSelect.setFrequency(100000000);
+                gui::waterfall.setCenterFrequency(100000000);
+            }
+        }
+        else {
+            gui::freqSelect.minFreq = 0;
+            gui::freqSelect.maxFreq = 1e9; // max 1GHz
+            if (gui::freqSelect.frequency < gui::freqSelect.minFreq || gui::freqSelect.frequency > gui::freqSelect.maxFreq) {
+                gui::freqSelect.setFrequency(100000000);
+                gui::waterfall.setCenterFrequency(100000000);
+            }
+        }
+        gui::freqSelect.limitFreq = true;
     }
 
     static void menuSelected(void* ctx) {
