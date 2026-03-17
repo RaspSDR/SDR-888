@@ -436,9 +436,9 @@ private:
 
     void start() {
         // Open the device
-        int err = sddc_open(&openDev, selectedDevId);
-        if (err) {
-            flog::error("Failed to open device: {}", (int)err);
+        startError = sddc_open(&openDev, selectedDevId);
+        if (startError) {
+            flog::error("Failed to open device: {}", (int)startError);
             return;
         }
 
@@ -519,6 +519,7 @@ private:
 
     static void stop(void* ctx) {
         SDDCSourceModule* _this = (SDDCSourceModule*)ctx;
+        _this->startError = SDDC_SUCCESS;
         if (!_this->running) { return; }
 
         _this->stop();
@@ -592,6 +593,39 @@ private:
             _this->refresh();
             _this->select(_this->selectedSerial);
             core::setInputSampleRate(_this->sampleRate);
+        }
+
+        if (_this->startError != SDDC_SUCCESS) {
+            /*
+             * -  0 (`SDDC_SUCCESS`)           on success
+             * - -1 (`SDDC_ERROR`)             if `dev` is NULL
+             * - -4 (`SDDC_ERROR_IO`)          on USB communication failure
+             * - -5 (`SDDC_ERROR_NO_DEVICE`)   if no device is present at `index`
+             * - -6 (`SDDC_ERROR_USB_SPEED`)   if device is not connected at SuperSpeed (USB 3.0)
+             * - -7 (`SDDC_ERROR_FIRMWARE`)    if the firmware version does not match
+             * - -8 (`SDDC_ERROR_OPEN`)        if the OS denied access to the USB device
+             */
+            switch (_this->startError) {
+            case SDDC_ERROR:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: Invalid parameter"));
+                break;
+            case SDDC_ERROR_IO:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: USB communication failure"));
+                break;
+            case SDDC_ERROR_NO_DEVICE:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: No device found"));
+                break;
+            case SDDC_ERROR_USB_SPEED:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: Device not connected at SuperSpeed (USB 3.0) port"));
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Or Device is using USB 2.0 cable or USB 2.0 port/hub."));
+                break;
+            case SDDC_ERROR_FIRMWARE:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: Firmware version does not match"));
+                break;
+            case SDDC_ERROR_OPEN:
+                SmGui::TextColored(ImVec4(1, 0, 0, 1), _L("Error: OS denied access to the USB device"));
+                break;
+            }
         }
 
         if (SmGui::Checkbox(_L("External Clock"), &_this->ext_clock)) {
@@ -886,6 +920,8 @@ private:
 
     RxVFOType ddc;
     dsp::stream<int16_t> dataIn;
+
+    int startError = SDDC_SUCCESS;
 };
 
 MOD_EXPORT void _INIT_() {
