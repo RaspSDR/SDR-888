@@ -86,6 +86,11 @@ public:
         handler.tuneHandler = tune;
         handler.stream = &ddc.out;
 
+        // Define the ports
+        ports.clear();
+        ports.define("hf", "HF", PORT_HF);
+        ports.define("vhf", "VHF", PORT_VHF);
+
         // Refresh devices
         refresh();
 
@@ -689,7 +694,7 @@ private:
             }
         }
 
-        if (_this->rf_steps > 0) {
+        if (_this->rf_steps > 0 && _this->rf_gain_steps != nullptr) {
             SmGui::LeftLabel(_L("RF Gain"));
             SmGui::FillWidth();
             char label[32];
@@ -708,7 +713,7 @@ private:
             }
         }
 
-        if (_this->if_steps > 0) {
+        if (_this->if_steps > 0 && _this->if_gain_steps != nullptr) {
             SmGui::LeftLabel(_L("IF Gain"));
             SmGui::FillWidth();
             char label[32];
@@ -849,11 +854,11 @@ private:
 
     int rfGainIdx;
     int rf_steps;
-    const float* rf_gain_steps;
+    const float* rf_gain_steps = nullptr;
 
     int ifGainIdx;
     int if_steps;
-    const float* if_gain_steps;
+    const float* if_gain_steps = nullptr;
 
     bool pga;
     bool dither;
