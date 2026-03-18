@@ -165,7 +165,7 @@ namespace displaymenu {
         }
         ImGui::SameLine();
         ImGui::FillWidth();
-        if (ImGui::InputInt("##sdrpp_fft_hold_speed", &fftHoldSpeed)) {
+        if (ImGui::SliderInt("##sdrpp_fft_hold_speed", &fftHoldSpeed, 2, 100)) {
             updateFFTSpeeds();
             core::configManager.acquire();
             core::configManager.conf["fftHoldSpeed"] = fftHoldSpeed;
@@ -180,8 +180,7 @@ namespace displaymenu {
         }
         ImGui::SameLine();
         ImGui::FillWidth();
-        if (ImGui::InputInt("##sdrpp_fft_smoothing_speed", &fftSmoothingSpeed)) {
-            fftSmoothingSpeed = std::max<int>(fftSmoothingSpeed, 1);
+        if (ImGui::SliderInt("##sdrpp_fft_smoothing_speed", &fftSmoothingSpeed, 2, 100)) {
             updateFFTSpeeds();
             core::configManager.acquire();
             core::configManager.conf["fftSmoothingSpeed"] = fftSmoothingSpeed;
@@ -196,7 +195,7 @@ namespace displaymenu {
         }
         ImGui::SameLine();
         ImGui::FillWidth();
-        if (ImGui::InputInt("##sdrpp_snr_smoothing_speed", &snrSmoothingSpeed)) {
+        if (ImGui::SliderInt("##sdrpp_snr_smoothing_speed", &snrSmoothingSpeed, 1, 100)) {
             snrSmoothingSpeed = std::max<int>(snrSmoothingSpeed, 1);
             updateFFTSpeeds();
             core::configManager.acquire();
