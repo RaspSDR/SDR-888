@@ -384,7 +384,7 @@ private:
         // Update freq select limits
         if (port == PORT_HF) {
             gui::freqSelect.minFreq = 0;
-            gui::freqSelect.maxFreq = sampleRate / 2;
+            gui::freqSelect.maxFreq = xtal_freq / 2;
             if (gui::freqSelect.frequency < gui::freqSelect.minFreq || gui::freqSelect.frequency > gui::freqSelect.maxFreq) {
                 gui::freqSelect.setFrequency(7000000);
                 gui::waterfall.setCenterFrequency(7000000);
