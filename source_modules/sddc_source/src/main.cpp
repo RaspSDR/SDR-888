@@ -886,12 +886,12 @@ private:
 
     std::string selectedSerial;
 
-    int rfGainIdx;
-    int rf_steps;
+    int rfGainIdx = 0;
+    int rf_steps = 0;
     const float* rf_gain_steps = nullptr;
 
-    int ifGainIdx;
-    int if_steps;
+    int ifGainIdx = 0;
+    int if_steps = 0;
     const float* if_gain_steps = nullptr;
 
     bool pga;
