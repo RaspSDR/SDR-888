@@ -363,6 +363,9 @@ private:
         if (config.conf["devices"][selectedSerial].contains("dither" + portName)) {
             dither = config.conf["devices"][selectedSerial]["dither" + portName];
         }
+        if (config.conf["devices"][selectedSerial].contains("force_32M_lpf")) {
+            force_32M_lpf = config.conf["devices"][selectedSerial]["force_32M_lpf"];
+        }
         if (has_preamp && config.conf["devices"][selectedSerial].contains("preamp" + portName)) {
             preamp = config.conf["devices"][selectedSerial]["preamp" + portName];
         }
@@ -454,7 +457,7 @@ private:
 
                 switch (port) {
                 case PORT_HF:
-                    if (xtal_freq > 64e6)
+                    if (xtal_freq > 64e6 && !force_32M_lpf)
                         sddc_set_adc_filter(openDev, Freq64MHz);
                     else
                         sddc_set_adc_filter(openDev, Freq32MHz);
@@ -766,6 +769,19 @@ private:
             }
         }
 
+        if (_this->model == MODEL_RX888PRO && _this->xtal_freq > 64e6 && _this->port == PORT_HF) {
+            if (SmGui::Checkbox(_L("Force 32M LPF"), &_this->force_32M_lpf)) {
+                if (_this->running) {
+                    sddc_set_adc_filter(_this->openDev, _this->force_32M_lpf ? Freq32MHz : Freq64MHz);
+                }
+                if (!_this->selectedSerial.empty()) {
+                    config.acquire();
+                    config.conf["devices"][_this->selectedSerial]["force_32M_lpf"] = _this->force_32M_lpf;
+                    config.release(true);
+                }
+            }
+        }
+
         if (_this->has_preamp && SmGui::Checkbox(_L("Preamp"), &_this->preamp)) {
             if (_this->running) {
                 sddc_enable_preamp(_this->openDev, _this->preamp ? 1 : 0);
@@ -903,6 +919,8 @@ private:
     int buffercount;
     std::thread workerThread;
     std::atomic<bool> run = false;
+
+    bool force_32M_lpf = false;
 
     bool bias;
     bool highz;
