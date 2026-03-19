@@ -5,7 +5,6 @@
 #include <signal_path/signal_path.h>
 #include <core.h>
 #include <utils/optionlist.h>
-#include <atomic>
 #include <assert.h>
 #include "libsddc.h"
 #include "alex.h"
@@ -917,14 +916,11 @@ private:
     sddc_dev_t* openDev;
 
     int buffercount;
-    std::thread workerThread;
-    std::atomic<bool> run = false;
 
     bool force_32M_lpf = false;
 
     bool bias;
     bool highz;
-    bool anti_alias = true;
 
     bool has_preamp = false;
     bool preamp = false;
