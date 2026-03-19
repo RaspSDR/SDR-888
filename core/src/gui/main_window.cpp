@@ -632,6 +632,20 @@ void MainWindow::draw() {
 
     ImGui::NewLine();
 
+    // BUTTON TO AUTO SCALE
+    if (ImGui::Button(_L("Auto"))) {
+        gui::waterfall.autoRange();
+        fftMax = gui::waterfall.getFFTMax();
+        fftMin = gui::waterfall.getFFTMin();
+
+        core::configManager.acquire();
+        core::configManager.conf["max"] = fftMax;
+        core::configManager.conf["min"] = fftMin;
+        core::configManager.release(true);
+    }
+
+    ImGui::NewLine();
+
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize(_L("Max")).x / 2.0));
     ImGui::TextUnformatted(_L("Max"));
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10 * style::uiScale);

@@ -1048,6 +1048,9 @@ namespace ImGui {
         }
         fftMin = min - 5;
         fftMax = max + 5;
+
+        fftMin = std::clamp<float>(fftMin, -135.0f, -60.0f);
+        fftMax = std::clamp<float>(fftMax, -100.0f, 0.0f);
     }
 
     void WaterFall::setCenterFrequency(double freq) {
