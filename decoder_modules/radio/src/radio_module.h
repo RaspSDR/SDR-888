@@ -172,6 +172,10 @@ public:
     };
 
 private:
+    static bool isSSBDemodID(DemodID id) {
+        return id == RADIO_DEMOD_USB || id == RADIO_DEMOD_LSB || id == RADIO_DEMOD_DSB;
+    }
+
     static void menuHandler(void* ctx) {
         RadioModule* _this = (RadioModule*)ctx;
         ImGui::PushID(_this->name.c_str());
@@ -181,8 +185,8 @@ private:
         float menuWidth = ImGui::GetContentRegionAvail().x;
         ImGui::BeginGroup();
 
-        ImGui::Columns(5, "RadioModeColumns", false);
-        if (ImGui::RadioButton("AM", _this->selectedDemodID == RADIO_DEMOD_AM) && _this->selectedDemodID != 2) {
+        ImGui::Columns(4, "RadioModeColumns", false);
+        if (ImGui::RadioButton("AM", _this->selectedDemodID == RADIO_DEMOD_AM) && _this->selectedDemodID != RADIO_DEMOD_AM) {
             _this->selectDemodByID(RADIO_DEMOD_AM);
         }
         if (ImGui::RadioButton("SAM", _this->selectedDemodID == RADIO_DEMOD_SAM) && _this->selectedDemodID != RADIO_DEMOD_SAM) {
@@ -190,27 +194,20 @@ private:
         }
         ImGui::NextColumn();
 
-        if (ImGui::RadioButton("USB", _this->selectedDemodID == RADIO_DEMOD_USB) && _this->selectedDemodID != RADIO_DEMOD_USB) {
+        if (ImGui::RadioButton("SSB", isSSBDemodID((DemodID)_this->selectedDemodID)) && !isSSBDemodID((DemodID)_this->selectedDemodID)) {
             _this->selectDemodByID(RADIO_DEMOD_USB);
-        }
-        if (ImGui::RadioButton("NFM", _this->selectedDemodID == RADIO_DEMOD_NFM) && _this->selectedDemodID != 0) {
-            _this->selectDemodByID(RADIO_DEMOD_NFM);
-        }
-        ImGui::NextColumn();
-
-        if (ImGui::RadioButton("LSB", _this->selectedDemodID == RADIO_DEMOD_LSB) && _this->selectedDemodID != RADIO_DEMOD_LSB) {
-            _this->selectDemodByID(RADIO_DEMOD_LSB);
-        }
-        if (ImGui::RadioButton("WFM", _this->selectedDemodID == RADIO_DEMOD_WFM) && _this->selectedDemodID != RADIO_DEMOD_WFM) {
-            _this->selectDemodByID(RADIO_DEMOD_WFM);
-        }
-        ImGui::NextColumn();
-        if (ImGui::RadioButton("DSB", _this->selectedDemodID == RADIO_DEMOD_DSB) && _this->selectedDemodID != 3) {
-            _this->selectDemodByID(RADIO_DEMOD_DSB);
         }
         if (ImGui::RadioButton("CW", _this->selectedDemodID == RADIO_DEMOD_CW) && _this->selectedDemodID != RADIO_DEMOD_CW) {
             _this->selectDemodByID(RADIO_DEMOD_CW);
         };
+        ImGui::NextColumn();
+
+        if (ImGui::RadioButton("NFM", _this->selectedDemodID == RADIO_DEMOD_NFM) && _this->selectedDemodID != RADIO_DEMOD_NFM) {
+            _this->selectDemodByID(RADIO_DEMOD_NFM);
+        }
+        if (ImGui::RadioButton("WFM", _this->selectedDemodID == RADIO_DEMOD_WFM) && _this->selectedDemodID != RADIO_DEMOD_WFM) {
+            _this->selectDemodByID(RADIO_DEMOD_WFM);
+        }
         ImGui::NextColumn();
         if (ImGui::RadioButton("RAW", _this->selectedDemodID == RADIO_DEMOD_RAW) && _this->selectedDemodID != RADIO_DEMOD_RAW) {
             _this->selectDemodByID(RADIO_DEMOD_RAW);
@@ -223,6 +220,29 @@ private:
         ImGui::Columns(1, CONCAT("EndRadioModeColumns##_", _this->name), false);
 
         ImGui::EndGroup();
+
+        if (isSSBDemodID((DemodID)_this->selectedDemodID)) {
+            int ssbMode = 0;
+            if (_this->selectedDemodID == RADIO_DEMOD_LSB) {
+                ssbMode = 1;
+            }
+            else if (_this->selectedDemodID == RADIO_DEMOD_DSB) {
+                ssbMode = 2;
+            }
+
+            ImGui::LeftLabel(_L("SSB Mode"));
+            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
+            if (ImGui::Combo("##_radio_ssb_mode", &ssbMode, "USB\0LSB\0DSB\0")) {
+                DemodID id = RADIO_DEMOD_USB;
+                if (ssbMode == 1) {
+                    id = RADIO_DEMOD_LSB;
+                }
+                else if (ssbMode == 2) {
+                    id = RADIO_DEMOD_DSB;
+                }
+                _this->selectDemodByID(id);
+            }
+        }
 
         if (!_this->bandwidthLocked) {
             ImGui::LeftLabel(_L("Bandwidth"));
@@ -355,10 +375,10 @@ private:
             case DemodID::RADIO_DEMOD_NFM:  demod = new demod::NFM(); break;
             case DemodID::RADIO_DEMOD_WFM:  demod = new demod::WFM(); break;
             case DemodID::RADIO_DEMOD_AM:   demod = new demod::AM(); break;
-            case DemodID::RADIO_DEMOD_DSB:  demod = new demod::DSB(); break;
-            case DemodID::RADIO_DEMOD_USB:  demod = new demod::USB(); break;
+            case DemodID::RADIO_DEMOD_DSB:  demod = new demod::SSB(demod::SSB::Mode::DSB); break;
+            case DemodID::RADIO_DEMOD_USB:  demod = new demod::SSB(demod::SSB::Mode::USB); break;
             case DemodID::RADIO_DEMOD_CW:   demod = new demod::CW(); break;
-            case DemodID::RADIO_DEMOD_LSB:  demod = new demod::LSB(); break;
+            case DemodID::RADIO_DEMOD_LSB:  demod = new demod::SSB(demod::SSB::Mode::LSB); break;
             case DemodID::RADIO_DEMOD_RAW:  demod = new demod::RAW(); break;
             case DemodID::RADIO_DEMOD_SAM:  demod = new demod::SAM(); break;
             case DemodID::RADIO_DEMOD_DRM:  demod = new demod::DRM(); break;
