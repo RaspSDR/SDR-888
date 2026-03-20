@@ -65,6 +65,18 @@ namespace backend {
         }
     }
 
+    float getSystemScale() {
+        if (!g_hWnd) {
+            return 1.0f;
+        }
+
+        float scale = ImGui_ImplWin32_GetDpiScaleForHwnd(g_hWnd);
+        if (scale <= 0.0f) {
+            return 1.0f;
+        }
+        return scale;
+    }
+
     static void toggleFullscreen(bool enable) {
         if (!g_hWnd) return;
         if (enable == fullScreen) return;

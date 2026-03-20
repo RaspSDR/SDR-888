@@ -161,6 +161,25 @@ static int _winWidth = 0, _winHeight = 0;
 static bool _maximized = false;
 
 
+float getSystemScale()
+{
+    @autoreleasepool {
+        CGFloat scale = 0.0;
+        if (g_window && g_window.screen) {
+            scale = g_window.screen.backingScaleFactor;
+        }
+        else if ([NSScreen mainScreen]) {
+            scale = [NSScreen mainScreen].backingScaleFactor;
+        }
+
+        if (scale <= 0.0) {
+            return 1.0f;
+        }
+        return (float)scale;
+    }
+}
+
+
 int init(std::string resDir)
 {
     @autoreleasepool {

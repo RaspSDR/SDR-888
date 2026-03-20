@@ -9,6 +9,7 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <android/asset_manager.h>
+#include <android/configuration.h>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 #include <stdint.h>
@@ -95,6 +96,22 @@ namespace backend {
         }
         ANativeWindow_acquire(app->window);
         return 0;
+    }
+
+    float getSystemScale() {
+        if (app == NULL || app->config == NULL) {
+            return 3.0f;
+        }
+
+        int density = AConfiguration_getDensity(app->config);
+        if (density == ACONFIGURATION_DENSITY_DEFAULT) {
+            return 1.0f;
+        }
+        if (density <= 0) {
+            return 3.0f;
+        }
+
+        return (float)density / 160.0f;
     }
 
     int init(std::string resDir) {

@@ -65,6 +65,18 @@ namespace backend {
         }
     }
 
+    float getSystemScale() {
+        if (window == NULL) {
+            return 1.0f;
+        }
+
+        float scale = ImGui_ImplGlfw_GetContentScaleForWindow(window);
+        if (scale <= 0.0f) {
+            return 1.0f;
+        }
+        return scale;
+    }
+
     int init(std::string resDir) {
         // Load config
         core::configManager.acquire();

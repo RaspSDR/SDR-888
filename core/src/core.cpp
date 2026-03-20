@@ -198,11 +198,7 @@ int sdrpp_main(int argc, char* argv[]) {
 
     // Themes
     defConfig["theme"] = "Dark";
-#ifdef __ANDROID__
-    defConfig["uiScale"] = 3.0f;
-#else
-    defConfig["uiScale"] = 1.0f;
-#endif
+    defConfig["uiScale"] = 0.0f;
 
     defConfig["language"] = "en";
     defConfig["modules"] = json::array();
@@ -335,6 +331,17 @@ int sdrpp_main(int argc, char* argv[]) {
     // Initialize backend
     int biRes = backend::init(resDir);
     if (biRes < 0) { return biRes; }
+
+    if (style::uiScale <= 0.0f) {
+        style::uiScale = backend::getSystemScale();
+        if (style::uiScale <= 0.0f) {
+            style::uiScale = 1.0f;
+        }
+        flog::info("Using system UI scale: {0}", style::uiScale);
+    }
+    else {
+        flog::info("Using configured UI scale: {0}", style::uiScale);
+    }
 
     // Initialize SmGui in normal mode
     SmGui::init(false);

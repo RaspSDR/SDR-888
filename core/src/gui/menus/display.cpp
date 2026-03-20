@@ -111,11 +111,14 @@ namespace displaymenu {
         updateFFTSpeeds();
 
         // Define and load UI scales
+        uiScales.define(0.0f, "System", 0.0f);
         uiScales.define(1.0f, "100%", 1.0f);
+        uiScales.define(1.5f, "150%", 1.5f);
         uiScales.define(2.0f, "200%", 2.0f);
         uiScales.define(3.0f, "300%", 3.0f);
         uiScales.define(4.0f, "400%", 4.0f);
-        uiScaleId = uiScales.valueId(style::uiScale);
+        float configuredUiScale = core::configManager.conf["uiScale"];
+        uiScaleId = uiScales.valueExists(configuredUiScale) ? uiScales.valueId(configuredUiScale) : uiScales.valueId(0.0f);
 
         languageOptions.define("en", _L("English"), "en");
         languageOptions.define("zh_CN", _L("Chinese (Simplified)"), "zh_CN");
