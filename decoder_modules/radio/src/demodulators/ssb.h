@@ -1,6 +1,7 @@
 #pragma once
 #include "../demod.h"
 #include <dsp/demod/ssb.h>
+#include <dsp/demod/sam.h>
 
 namespace demod {
     class SSB : public Demodulator {
@@ -37,24 +38,64 @@ namespace demod {
             if (config->conf[name][getConfigName()].contains("gain")) {
                 gain = config->conf[name][getConfigName()]["gain"];
             }
+            if (config->conf[name][getConfigName()].contains("syncDemod")) {
+                syncDemod = config->conf[name][getConfigName()]["syncDemod"];
+            }
             config->release();
 
             // Define structure
-            demod.init(input, getDspMode(), agcEnable, gain, bandwidth, getIFSampleRate(), agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate());
+            if (syncDemod) {
+                samDemod.init(input,
+                              getSyncMode(),
+                              agcEnable,
+                              gain,
+                              dsp::demod::SAM<dsp::stereo_t>::PLLSpeed::MEDIUM,
+                              bandwidth,
+                              agcAttack / getIFSampleRate(),
+                              agcDecay / getIFSampleRate(),
+                              100.0 / getIFSampleRate(),
+                              getIFSampleRate());
+            }
+            else {
+                ssbDemod.init(input, getDspMode(), agcEnable, gain, bandwidth, getIFSampleRate(), agcAttack / getIFSampleRate(), agcDecay / getIFSampleRate());
+            }
         }
 
-        void start() { demod.start(); }
+        void start() {
+            if (syncDemod) {
+                samDemod.start();
+            }
+            else {
+                ssbDemod.start();
+            }
+        }
 
-        void stop() { demod.stop(); }
+        void stop() {
+            if (syncDemod) {
+                samDemod.stop();
+            }
+            else {
+                ssbDemod.stop();
+            }
+        }
 
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
 
+            ImGui::PushID("ssb_sync_demod");
+            if (ImGui::Checkbox("Sync Demod", &syncDemod)) {
+                _config->acquire();
+                _config->conf[name][getConfigName()]["syncDemod"] = syncDemod;
+                _config->release(true);
+                reinitRequested = true;
+            }
+            ImGui::PopID();
+
             ImGui::PushID("ssb_agc_enable");
             if (ImGui::Checkbox(_L("Enable AGC"), &agcEnable)) {
-                demod.setAGCEnable(agcEnable);
+                setAGCEnableInternal(agcEnable);
                 if (!agcEnable) {
-                    demod.setGainDb(gain);
+                    setGainInternal(gain);
                 }
                 _config->acquire();
                 _config->conf[name][getConfigName()]["agcEnable"] = agcEnable;
@@ -66,7 +107,7 @@ namespace demod {
                 ImGui::LeftLabel(_L("AGC Attack"));
                 ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
                 if (ImGui::SliderFloat(("##_radio_ssb_agc_attack_" + name).c_str(), &agcAttack, 1.0f, 200.0f)) {
-                    demod.setAGCAttack(agcAttack / getIFSampleRate());
+                    setAGCAttackInternal(agcAttack / getIFSampleRate());
                     _config->acquire();
                     _config->conf[name][getConfigName()]["agcAttack"] = agcAttack;
                     _config->release(true);
@@ -74,7 +115,7 @@ namespace demod {
                 ImGui::LeftLabel(_L("AGC Decay"));
                 ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
                 if (ImGui::SliderFloat(("##_radio_ssb_agc_decay_" + name).c_str(), &agcDecay, 1.0f, 20.0f)) {
-                    demod.setAGCDecay(agcDecay / getIFSampleRate());
+                    setAGCDecayInternal(agcDecay / getIFSampleRate());
                     _config->acquire();
                     _config->conf[name][getConfigName()]["agcDecay"] = agcDecay;
                     _config->release(true);
@@ -84,7 +125,7 @@ namespace demod {
                 ImGui::LeftLabel(_L("Gain"));
                 ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
                 if (ImGui::SliderFloat(("##_radio_ssb_gain_" + name).c_str(), &gain, 0.0f, 100.0f, "%.1f dB")) {
-                    demod.setGainDb(gain);
+                    setGainInternal(gain);
                     _config->acquire();
                     _config->conf[name][getConfigName()]["gain"] = gain;
                     _config->release(true);
@@ -92,9 +133,23 @@ namespace demod {
             }
         }
 
-        void setBandwidth(double bandwidth) { demod.setBandwidth(bandwidth); }
+        void setBandwidth(double bandwidth) {
+            if (syncDemod) {
+                samDemod.setBandwidth(bandwidth);
+            }
+            else {
+                ssbDemod.setBandwidth(bandwidth);
+            }
+        }
 
-        void setInput(dsp::stream<dsp::complex_t>* input) { demod.setInput(input); }
+        void setInput(dsp::stream<dsp::complex_t>* input) {
+            if (syncDemod) {
+                samDemod.setInput(input);
+            }
+            else {
+                ssbDemod.setInput(input);
+            }
+        }
 
         void AFSampRateChanged(double newSR) {}
 
@@ -120,13 +175,65 @@ namespace demod {
         bool getNBAllowed() { return true; }
         bool getANRAllowed() { return mode != Mode::DSB; }
         bool getANFAllowed() { return mode != Mode::DSB; }
-        dsp::stream<dsp::stereo_t>* getOutput() { return &demod.out; }
+        bool takeReinitRequest() {
+            bool ret = reinitRequested;
+            reinitRequested = false;
+            return ret;
+        }
+        dsp::stream<dsp::stereo_t>* getOutput() {
+            if (syncDemod) {
+                return &samDemod.out;
+            }
+            return &ssbDemod.out;
+        }
 
     private:
+        void setAGCEnableInternal(bool enable) {
+            if (syncDemod) {
+                samDemod.setAGCEnable(enable);
+            }
+            else {
+                ssbDemod.setAGCEnable(enable);
+            }
+        }
+
+        void setAGCAttackInternal(double attack) {
+            if (syncDemod) {
+                samDemod.setAGCAttack(attack);
+            }
+            else {
+                ssbDemod.setAGCAttack(attack);
+            }
+        }
+
+        void setAGCDecayInternal(double decay) {
+            if (syncDemod) {
+                samDemod.setAGCDecay(decay);
+            }
+            else {
+                ssbDemod.setAGCDecay(decay);
+            }
+        }
+
+        void setGainInternal(double gainDb) {
+            if (syncDemod) {
+                samDemod.setGainDb(gainDb);
+            }
+            else {
+                ssbDemod.setGainDb(gainDb);
+            }
+        }
+
         dsp::demod::SSB<dsp::stereo_t>::Mode getDspMode() {
             if (mode == Mode::USB) { return dsp::demod::SSB<dsp::stereo_t>::Mode::USB; }
             if (mode == Mode::LSB) { return dsp::demod::SSB<dsp::stereo_t>::Mode::LSB; }
             return dsp::demod::SSB<dsp::stereo_t>::Mode::DSB;
+        }
+
+        dsp::demod::SAM<dsp::stereo_t>::Mode getSyncMode() {
+            if (mode == Mode::USB) { return dsp::demod::SAM<dsp::stereo_t>::USB; }
+            if (mode == Mode::LSB) { return dsp::demod::SAM<dsp::stereo_t>::LSB; }
+            return dsp::demod::SAM<dsp::stereo_t>::SAM_MODE;
         }
 
         const char* getConfigName() {
@@ -136,10 +243,13 @@ namespace demod {
         }
 
         Mode mode = Mode::USB;
-        dsp::demod::SSB<dsp::stereo_t> demod;
+        dsp::demod::SSB<dsp::stereo_t> ssbDemod;
+        dsp::demod::SAM<dsp::stereo_t> samDemod;
 
         ConfigManager* _config;
 
+        bool syncDemod = false;
+        bool reinitRequested = false;
         bool agcEnable = true;
         float agcAttack = 50.0f;
         float agcDecay = 5.0f;

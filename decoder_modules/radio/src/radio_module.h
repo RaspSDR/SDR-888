@@ -166,12 +166,15 @@ public:
         RADIO_DEMOD_CW,
         RADIO_DEMOD_LSB,
         RADIO_DEMOD_RAW,
-        RADIO_DEMOD_SAM,
         RADIO_DEMOD_DRM,
         _RADIO_DEMOD_COUNT,
     };
 
 private:
+    static bool isAMDemodID(DemodID id) {
+        return id == RADIO_DEMOD_AM;
+    }
+
     static bool isSSBDemodID(DemodID id) {
         return id == RADIO_DEMOD_USB || id == RADIO_DEMOD_LSB || id == RADIO_DEMOD_DSB;
     }
@@ -186,12 +189,12 @@ private:
         ImGui::BeginGroup();
 
         ImGui::Columns(4, "RadioModeColumns", false);
-        if (ImGui::RadioButton("AM", _this->selectedDemodID == RADIO_DEMOD_AM) && _this->selectedDemodID != RADIO_DEMOD_AM) {
+        if (ImGui::RadioButton("AM", isAMDemodID((DemodID)_this->selectedDemodID)) && !isAMDemodID((DemodID)_this->selectedDemodID)) {
             _this->selectDemodByID(RADIO_DEMOD_AM);
         }
-        if (ImGui::RadioButton("SAM", _this->selectedDemodID == RADIO_DEMOD_SAM) && _this->selectedDemodID != RADIO_DEMOD_SAM) {
-            _this->selectDemodByID(RADIO_DEMOD_SAM);
-        }
+        if (ImGui::RadioButton("DRM", _this->selectedDemodID == RADIO_DEMOD_DRM) && _this->selectedDemodID != RADIO_DEMOD_DRM) {
+            _this->selectDemodByID(RADIO_DEMOD_DRM);
+        };
         ImGui::NextColumn();
 
         if (ImGui::RadioButton("SSB", isSSBDemodID((DemodID)_this->selectedDemodID)) && !isSSBDemodID((DemodID)_this->selectedDemodID)) {
@@ -211,9 +214,6 @@ private:
         ImGui::NextColumn();
         if (ImGui::RadioButton("RAW", _this->selectedDemodID == RADIO_DEMOD_RAW) && _this->selectedDemodID != RADIO_DEMOD_RAW) {
             _this->selectDemodByID(RADIO_DEMOD_RAW);
-        };
-        if (ImGui::RadioButton("DRM", _this->selectedDemodID == RADIO_DEMOD_DRM) && _this->selectedDemodID != RADIO_DEMOD_DRM) {
-            _this->selectDemodByID(RADIO_DEMOD_DRM);
         };
         ImGui::NextColumn();
 
@@ -364,6 +364,9 @@ private:
 
         // Demodulator specific menu
         _this->selectedDemod->showMenu();
+        if (_this->selectedDemod->takeReinitRequest()) {
+            _this->selectDemodByID((DemodID)_this->selectedDemodID);
+        }
 
         if (!_this->enabled) { style::endDisabled(); }
         ImGui::PopID();
@@ -380,7 +383,6 @@ private:
             case DemodID::RADIO_DEMOD_CW:   demod = new demod::CW(); break;
             case DemodID::RADIO_DEMOD_LSB:  demod = new demod::SSB(demod::SSB::Mode::LSB); break;
             case DemodID::RADIO_DEMOD_RAW:  demod = new demod::RAW(); break;
-            case DemodID::RADIO_DEMOD_SAM:  demod = new demod::SAM(); break;
             case DemodID::RADIO_DEMOD_DRM:  demod = new demod::DRM(); break;
             default:                        demod = NULL; break;
         }

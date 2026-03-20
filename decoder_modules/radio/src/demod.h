@@ -47,6 +47,7 @@ namespace demod {
         virtual bool getNBAllowed() = 0;
         virtual bool getANRAllowed() { return false; }
         virtual bool getANFAllowed() { return false; }
+        virtual bool takeReinitRequest() { return false; }
         virtual dsp::stream<dsp::stereo_t>* getOutput() = 0;
     };
 }
@@ -57,5 +58,4 @@ namespace demod {
 #include "demodulators/ssb.h"
 #include "demodulators/cw.h"
 #include "demodulators/raw.h"
-#include "demodulators/sam.h"
 #include "demodulators/drm.h"
