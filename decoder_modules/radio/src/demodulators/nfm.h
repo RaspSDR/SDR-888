@@ -69,8 +69,8 @@ namespace demod {
         double getIFSampleRate() { return 50000.0; }
         double getAFSampleRate() { return getIFSampleRate(); }
         double getDefaultBandwidth() { return 12500.0; }
-        double getMinBandwidth() { return 1000.0; }
-        double getMaxBandwidth() { return getIFSampleRate(); }
+        double getMinBandwidth() { return 5000.0; }
+        double getMaxBandwidth() { return 25000.0; }
         bool getBandwidthLocked() { return false; }
         double getDefaultSnapInterval() { return 2500.0; }
         int getVFOReference() { return ImGui::WaterfallVFO::REF_CENTER; }

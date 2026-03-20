@@ -187,9 +187,9 @@ namespace demod {
         double getIFSampleRate() { return 48000.0; }
         double getAFSampleRate() { return 48000.0; }
         double getDefaultBandwidth() { return 9000.0; }
-        double getMinBandwidth() { return 9000.0; }
-        double getMaxBandwidth() { return 20000.0; }
-        bool getBandwidthLocked() { return false; }
+        double getMinBandwidth() { return getDefaultBandwidth(); }
+        double getMaxBandwidth() { return getDefaultBandwidth(); }
+        bool getBandwidthLocked() { return true; }
         double getDefaultSnapInterval() { return 500.0; }
         int getVFOReference() { return ImGui::WaterfallVFO::REF_CENTER; }
         bool getDeempAllowed() { return false; }

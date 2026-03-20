@@ -222,8 +222,7 @@ private:
         if (!_this->bandwidthLocked) {
             ImGui::LeftLabel(_L("Bandwidth"));
             ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::InputFloat("##_radio_bw", &_this->bandwidth, 1, 100, "%.0f")) {
-                _this->bandwidth = std::clamp<float>(_this->bandwidth, _this->minBandwidth, _this->maxBandwidth);
+            if (ImGui::SliderFloat("##_radio_bw", &_this->bandwidth, _this->minBandwidth, _this->maxBandwidth, "%.0f")) {
                 _this->setBandwidth(_this->bandwidth);
             }
         }
@@ -372,6 +371,9 @@ private:
             config.release(true);
         }
         else {
+            if (config.conf[name][demod->getName()].contains("bandwidth")) {
+                bw = config.conf[name][demod->getName()]["bandwidth"];
+            }
             config.release();
         }
         bw = std::clamp<double>(bw, demod->getMinBandwidth(), demod->getMaxBandwidth());
@@ -545,10 +547,10 @@ private:
         if (!selectedDemod) { return; }
         selectedDemod->AFSampRateChanged(audioSampleRate);
         if (!postProcEnabled && vfo) {
-            // If postproc is disabled, IF SR = AF SR
+            // Keep the current passband when no AF post-processing stage is present.
             minBandwidth = selectedDemod->getMinBandwidth();
             maxBandwidth = selectedDemod->getMaxBandwidth();
-            bandwidth = selectedDemod->getIFSampleRate();
+            bandwidth = std::clamp<double>(bandwidth, minBandwidth, maxBandwidth);
             vfo->setBandwidthLimits(minBandwidth, maxBandwidth, selectedDemod->getBandwidthLocked());
             vfo->setSampleRate(selectedDemod->getIFSampleRate(), bandwidth);
             return;
