@@ -19,7 +19,8 @@ namespace dsp::demod {
             SAM_MODE,  // Synchronous AM (both sidebands)
             USB,       // Upper sideband only
             LSB,       // Lower sideband only
-            STEREO     // Stereo (LSB = left, USB = right)
+            STEREO,    // Stereo (LSB = left, USB = right)
+            ECSS       // Exalted Carrier Single Sideband (auto-select best sideband)
         };
 
         enum AGCMode {
@@ -31,6 +32,12 @@ namespace dsp::demod {
             SLOW,    // DX mode: slow, stable (zeta=0.2, omegaN=70)
             MEDIUM,  // Standard mode (zeta=0.65, omegaN=200)
             FAST     // Fast tracking (zeta=1.0, omegaN=500)
+        };
+
+        enum ECSSSidebandMode {
+            ECSS_AUTO,
+            ECSS_LSB,
+            ECSS_USB,
         };
 
         SAM() {}
@@ -178,8 +185,24 @@ namespace dsp::demod {
             _fadeLeveler = enabled;
         }
 
+        void setECSSSidebandMode(ECSSSidebandMode mode) {
+            assert(base_type::_block_init);
+            std::lock_guard<std::recursive_mutex> lck(base_type::ctrlMtx);
+            _ecssSidebandMode = mode;
+            if (_ecssSidebandMode == ECSS_USB) {
+                _ecssUseUSB = true;
+            }
+            else if (_ecssSidebandMode == ECSS_LSB) {
+                _ecssUseUSB = false;
+            }
+        }
+
         float getCarrierFreq() const {
             return pcl.freq * _samplerate / (2.0 * FL_M_PI);
+        }
+
+        ECSSSidebandMode getECSSSidebandMode() const {
+            return _ecssSidebandMode;
         }
 
         void reset() {
@@ -199,7 +222,24 @@ namespace dsp::demod {
             _dcUSB = 0.0f;
             _dc_insertUSB = 0.0f;
             memset(delayBuf, 0, (HILBERT_STAGES * 3 + 3) * sizeof(complex_t));
+            _ecssEnergyLSB = 1e-20f;
+            _ecssEnergyUSB = 1e-20f;
+            _ecssNoiseLSB  = 1e-20f;
+            _ecssNoiseUSB  = 1e-20f;
+            _ecssUseUSB    = (_ecssSidebandMode == ECSS_USB);
             base_type::tempStart();
+        }
+
+        // ECSS sideband selection status
+        bool getECSSUseUSB() const { return _ecssUseUSB; }
+
+        // SNR proxy in dB for each sideband (signal energy / HF noise energy).
+        // Higher value means a cleaner sideband. Useful for diagnostics / UI display.
+        float getECSSSnrLSB() const {
+            return 10.0f * log10f(_ecssEnergyLSB / (_ecssNoiseLSB + 1e-20f));
+        }
+        float getECSSSnrUSB() const {
+            return 10.0f * log10f(_ecssEnergyUSB / (_ecssNoiseUSB + 1e-20f));
         }
 
         int process(int count, complex_t* in, T* out) {
@@ -265,6 +305,8 @@ namespace dsp::demod {
                         
                     case Mode::STEREO:
                         // Stereo mode: LSB in left, USB in right
+                    case Mode::ECSS:
+                        // Both sidebands computed; quality selection happens post-LPF
                         audioLSB = (ai_ps + bi_ps) - (aq_ps - bq_ps);
                         audioUSB = (ai_ps - bi_ps) + (aq_ps + bq_ps);
                         break;
@@ -276,7 +318,7 @@ namespace dsp::demod {
                     _dc_insert = _mtauI * _dc_insert + _onem_mtauI * corrected.re;
                     audioLSB = audioLSB + _dc_insert - _dc;
 
-                    if (_mode == Mode::STEREO) {
+                    if (_mode == Mode::STEREO || _mode == Mode::ECSS) {
                         _dcUSB = _mtauR * _dcUSB + _onem_mtauR * audioUSB;
                         _dc_insertUSB = _mtauI * _dc_insertUSB + _onem_mtauI * corrected.re;
                         audioUSB = audioUSB + _dc_insertUSB - _dcUSB;
@@ -298,7 +340,7 @@ namespace dsp::demod {
             }
 
             // Apply DC blocking
-            if (_mode == Mode::STEREO) {
+            if (_mode == Mode::STEREO || _mode == Mode::ECSS) {
                 dcBlock.process(count, audioAgc.out.writeBuf, audioAgc.out.writeBuf);
                 dcBlockUSB.process(count, audioAgcUSB.out.writeBuf, audioAgcUSB.out.writeBuf);
             } else {
@@ -309,8 +351,59 @@ namespace dsp::demod {
             {
                 std::lock_guard<std::mutex> lck(lpfMtx);
                 lpf.process(count, audioAgc.out.writeBuf, audioAgc.out.writeBuf);
-                if (_mode == Mode::STEREO) {
+                if (_mode == Mode::STEREO || _mode == Mode::ECSS) {
                     lpfUSB.process(count, audioAgcUSB.out.writeBuf, audioAgcUSB.out.writeBuf);
+                }
+            }
+
+            // ECSS: dynamic energy + HF noise estimation → hysteresis-guarded sideband selection
+            if (_mode == Mode::ECSS) {
+                float* lsbBuf = audioAgc.out.writeBuf;
+                float* usbBuf = audioAgcUSB.out.writeBuf;
+
+                // Accumulate per-block signal energy and first-difference (HF noise proxy)
+                float sumEL = 0.0f, sumEU = 0.0f;
+                float sumNL = 0.0f, sumNU = 0.0f;
+                for (int k = 0; k < count; k++) {
+                    sumEL += lsbBuf[k] * lsbBuf[k];
+                    sumEU += usbBuf[k] * usbBuf[k];
+                }
+                // First-difference squares: high-pass proxy that highlights wideband noise
+                for (int k = 1; k < count; k++) {
+                    float dL = lsbBuf[k] - lsbBuf[k - 1];
+                    float dU = usbBuf[k] - usbBuf[k - 1];
+                    sumNL += dL * dL;
+                    sumNU += dU * dU;
+                }
+
+                float invN = 1.0f / (float)count;
+
+                // Exponential smoothers — energy tracks signal level, noise tracks HF contamination
+                _ecssEnergyLSB = ECSS_ENERGY_TAU * _ecssEnergyLSB + (1.0f - ECSS_ENERGY_TAU) * (sumEL * invN);
+                _ecssEnergyUSB = ECSS_ENERGY_TAU * _ecssEnergyUSB + (1.0f - ECSS_ENERGY_TAU) * (sumEU * invN);
+                _ecssNoiseLSB  = ECSS_NOISE_TAU  * _ecssNoiseLSB  + (1.0f - ECSS_NOISE_TAU)  * (sumNL * invN);
+                _ecssNoiseUSB  = ECSS_NOISE_TAU  * _ecssNoiseUSB  + (1.0f - ECSS_NOISE_TAU)  * (sumNU * invN);
+
+                // SNR proxy: E / HF_noise — higher means cleaner sideband
+                float snrL = _ecssEnergyLSB / (_ecssNoiseLSB + 1e-20f);
+                float snrU = _ecssEnergyUSB / (_ecssNoiseUSB + 1e-20f);
+
+                if (_ecssSidebandMode == ECSS_AUTO) {
+                    // Hysteresis-guarded selection (3 dB gate prevents rapid toggling)
+                    if (_ecssUseUSB) {
+                        _ecssUseUSB = (snrU * ECSS_HYSTERESIS >= snrL);
+                    }
+                    else {
+                        _ecssUseUSB = (snrU >= snrL * ECSS_HYSTERESIS);
+                    }
+                }
+                else {
+                    _ecssUseUSB = (_ecssSidebandMode == ECSS_USB);
+                }
+
+                // Route selected sideband into the primary buffer for output
+                if (_ecssUseUSB) {
+                    memcpy(lsbBuf, usbBuf, count * sizeof(float));
                 }
             }
 
@@ -320,13 +413,13 @@ namespace dsp::demod {
             }
             if constexpr (std::is_same_v<T, stereo_t>) {
                 if (_mode == Mode::STEREO) {
-                    // True stereo output
+                    // True stereo: LSB → left, USB → right
                     for (int i = 0; i < count; i++) {
                         out[i].l = audioAgc.out.writeBuf[i];
                         out[i].r = audioAgcUSB.out.writeBuf[i];
                     }
                 } else {
-                    // Mono to stereo conversion
+                    // Mono to stereo (SAM, LSB, USB, ECSS — selected sideband already in writeBuf)
                     convert::MonoToStereo::process(count, audioAgc.out.writeBuf, out);
                 }
             }
@@ -472,5 +565,20 @@ namespace dsp::demod {
 
         // Hilbert transform delay buffers
         complex_t* delayBuf;
+
+        // ECSS state
+        // Energy smoother: slow τ avoids transient mismatches between sideband AGC levels
+        static constexpr float ECSS_ENERGY_TAU = 0.97f;
+        // HF noise smoother: slightly faster to track interference bursts
+        static constexpr float ECSS_NOISE_TAU  = 0.90f;
+        // 3 dB hysteresis gate (power ratio = 10^(3/10) ≈ 1.995) prevents rapid toggling
+        static constexpr float ECSS_HYSTERESIS = 1.995f;
+
+        float _ecssEnergyLSB = 1e-20f;  // Smoothed signal energy for LSB  (mean square)
+        float _ecssEnergyUSB = 1e-20f;  // Smoothed signal energy for USB  (mean square)
+        float _ecssNoiseLSB  = 1e-20f;  // Smoothed HF noise proxy for LSB (first-diff mean square)
+        float _ecssNoiseUSB  = 1e-20f;  // Smoothed HF noise proxy for USB (first-diff mean square)
+        ECSSSidebandMode _ecssSidebandMode = ECSS_AUTO;
+        bool  _ecssUseUSB    = false;   // Current sideband selection (false = LSB, true = USB)
     };
 }
