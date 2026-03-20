@@ -444,10 +444,8 @@ private:
         { RADIO_IFACE_MODE_NFM, "NFM" },
         { RADIO_IFACE_MODE_WFM, "WFM" },
         { RADIO_IFACE_MODE_AM,  "AM"  },
-        { RADIO_IFACE_MODE_DSB, "DSB" },
-        { RADIO_IFACE_MODE_USB, "USB" },
+        { RADIO_IFACE_MODE_SSB, "SSB" },
         { RADIO_IFACE_MODE_CW,  "CW"  },
-        { RADIO_IFACE_MODE_LSB, "LSB" },
         { RADIO_IFACE_MODE_RAW, "RAW" }
     };
 
