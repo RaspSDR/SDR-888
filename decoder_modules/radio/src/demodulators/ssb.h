@@ -58,11 +58,27 @@ namespace demod {
         void showMenu() {
             float menuWidth = ImGui::GetContentRegionAvail().x;
 
-            ImGui::LeftLabel(_L("Mode"));
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            int modeId = (int)mode;
-            if (ImGui::Combo("##_radio_ssb_mode_sel", &modeId, "USB\0LSB\0DSB\0")) {
-                mode = (Mode)modeId;
+            bool usbMode = (mode == Mode::USB);
+            bool lsbMode = (mode == Mode::LSB);
+            bool dsbMode = (mode == Mode::DSB);
+            bool modeChanged = false;
+
+            if (ImGui::Checkbox("USB##_radio_ssb_mode_usb", &usbMode) && usbMode) {
+                mode = Mode::USB;
+                modeChanged = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox("LSB##_radio_ssb_mode_lsb", &lsbMode) && lsbMode) {
+                mode = Mode::LSB;
+                modeChanged = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Checkbox("DSB##_radio_ssb_mode_dsb", &dsbMode) && dsbMode) {
+                mode = Mode::DSB;
+                modeChanged = true;
+            }
+
+            if (modeChanged) {
                 const char* modeStr = (mode == Mode::LSB) ? "LSB" : (mode == Mode::DSB) ? "DSB" : "USB";
                 _config->acquire();
                 _config->conf[name][getName()]["mode"] = modeStr;
@@ -77,7 +93,7 @@ namespace demod {
                     setGainInternal(gain);
                 }
                 _config->acquire();
-_config->conf[name][getName()]["agcEnable"] = agcEnable;
+                _config->conf[name][getName()]["agcEnable"] = agcEnable;
                 _config->release(true);
             }
             ImGui::PopID();
