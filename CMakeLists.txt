@@ -99,24 +99,26 @@ endif()
 MESSAGE(STATUS "BACKEND [GLFW: ${OPT_BACKEND_GLFW} APPLE: ${OPT_BACKEND_APPLE} WINDOWS: ${OPT_BACKEND_WINDOWS} ANDROID: ${OPT_BACKEND_ANDROID}]")
 
 # Compiler flags
-if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
-    # Debug Flags
-    if (MSVC)
-        set(SDRPP_COMPILER_FLAGS /EHsc)
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(SDRPP_COMPILER_FLAGS -g -Og -Wno-unused-command-line-argument -undefined dynamic_lookup)
-    else ()
-        set(SDRPP_COMPILER_FLAGS -g -Og)
-    endif ()
-else()
-    # Normal Flags
-    if (MSVC)
-        set(SDRPP_COMPILER_FLAGS /O2 /Ob2 /EHsc)
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(SDRPP_COMPILER_FLAGS -O3 -Wno-unused-command-line-argument -undefined dynamic_lookup)
-    else ()
-        set(SDRPP_COMPILER_FLAGS -O3)
-    endif ()
+if (MSVC)
+    set(SDRPP_COMPILER_FLAGS
+        /EHsc
+        $<$<NOT:$<CONFIG:Debug>>:/O2>
+        $<$<NOT:$<CONFIG:Debug>>:/Ob2>
+    )
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(SDRPP_COMPILER_FLAGS
+        $<$<CONFIG:Debug>:-g>
+        $<$<CONFIG:Debug>:-Og>
+        $<$<NOT:$<CONFIG:Debug>>:-O3>
+        -Wno-unused-command-line-argument
+        -undefined dynamic_lookup
+    )
+else ()
+    set(SDRPP_COMPILER_FLAGS
+        $<$<CONFIG:Debug>:-g>
+        $<$<CONFIG:Debug>:-Og>
+        $<$<NOT:$<CONFIG:Debug>>:-O3>
+    )
 endif()
 set(SDRPP_MODULE_COMPILER_FLAGS ${SDRPP_COMPILER_FLAGS})
 
